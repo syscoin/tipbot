@@ -58,7 +58,7 @@ const sjs = require('syscoinjs-lib')
 // blockbook URL
 const backendURL = config.blockURL
 // 'null' for no password encryption for local storage and 'true' for testnet
-const HDSigner = new sjs.utils.HDSigner(config.mnemonic, null, true)
+const HDSigner = new sjs.utils.HDSigner(config.mnemonic, null, config.testnet)
 var receiveIndex = ls.get("receiveIndex")
 if (receiveIndex) {
   HDSigner.receivingIndex = Number(receiveIndex)

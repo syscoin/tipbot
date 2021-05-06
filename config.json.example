@@ -12,6 +12,7 @@
   "giveawayChannel" : "",
   "tradeChannel" : "",
   "auctionChannel" : "",
+  "testnet": false,
   "tipChannel" : "",
   "tipMin" : 0.0001,
   "tipMaxDecimals" : 4,
