@@ -322,11 +322,21 @@ exports.payMission = async function(args, message, client) {
       tipAsset = mission.currencyID
     }
     var dividedReward = new BigNumber(mission.reward / missionProfiles.length)
-    let tipPerParticipant = utils.toWholeUnit(dividedReward.decimalPlaces(tipAsset.decimals, 1), tipAsset.decimals)
+    let tipPerParticipant = dividedReward.decimalPlaces(tipAsset.decimals, 1)
+    //Verify the validity of the payout argument.
+    if (
+      (tipPerParticipant.isNaN()) ||
+      (tipPerParticipant.lte(0))
+    ) {
+      msg.reply("The amount that each winner will win is below the lower threshold for this asset.");
+      return;
+    }
+    let tipPerParticipantWhole = utils.toWholeUnit(tipPerParticipant, tipAsset.decimals)
+    
     var totalTip = new BigNumber(0)
     for (var i = 0; i < missionProfiles.length; i++) {
       console.log(missionProfiles[i].userID)
-      var tipInfo = [1, tipPerParticipant, tipAsset]
+      var tipInfo = [1, tipPerParticipantWhole, tipAsset]
       tipSuccess = await tips.tipUser(tipInfo, myProfile, missionProfiles[i], c.MISSION, client, message)
 
       if (tipSuccess) {
@@ -355,7 +365,7 @@ exports.payMission = async function(args, message, client) {
       arr.forEach(user => {
         line = line + user + "\n "
       })
-      message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipant.toString() + " " + tipAsset.currencyStr + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + tipAsset.currencyStr + ") in mission **" + missionName + "** listed below:" + line } })
+      message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipantWhole.toString() + " " + tipAsset.currencyStr + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + tipAsset.currencyStr + ") in mission **" + missionName + "** listed below:" + line } })
     })
 
     exports.archiveMission(args, message, client)
