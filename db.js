@@ -172,11 +172,12 @@ exports.getBalances = function(discordID) {
 }
 
 // creates a new mission in the db
-exports.createMission = function(id, payout) {
+exports.createMission = function(id, payout, currency) {
   try {
     return Mission.create({
       missionID: id,
       reward: payout.toString(),
+      currencyID: currency.toString(),
       profiles: new Array(),
       dateCreated: new Date(),
       active: true
@@ -311,9 +312,19 @@ exports.createSPT = function(symbol, guid) {
 }
 
 // finds a SPT with the given ticker
-exports.getSPT = function(ticker) {
+exports.getSPT = function (ticker) {
   try {
     return SPT.findOne({ symbol: ticker });
+  } catch (error) {
+    console.log(error)
+    return null
+  }
+}
+
+// finds a SPT with the given GUID
+exports.getSPTByGUID = function (GUID) {
+  try {
+    return SPT.findOne({ guid: GUID });
   } catch (error) {
     console.log(error)
     return null

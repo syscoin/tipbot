@@ -65,7 +65,7 @@ function getHelpCommands(parm) {
 
       You must be a member of the role **${config.discordAdminRole}** to perform these commands. Also, these can only be performed in a bot channel (no DMs).
 
-      **\`${prefix}createmission [missionName] [payout]\`** Create a new mission with the given name and sys payout.
+      **\`${prefix}createmission [missionName] [payout] [symbol/guid]\`** Create a new mission with the given name, payout and optional symbol/guid. default is SYS
 
       **\`${prefix}add [missionName] @user\`** Adds a user to a mission i.e. they will receive the payout.
 

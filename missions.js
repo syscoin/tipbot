@@ -34,8 +34,34 @@ exports.createMission = async function(args, message, client) {
     var missionName = args[0]
     var payout = args[1]
 
+    var gCurrency,
+      currencyStr,
+      token
+    var decimals = 8
+
+    if (args[2]) {
+      gCurrency = args[2].toUpperCase()
+      if (gCurrency !== "SYS") {
+        token = await utils.getSPT(gCurrency)
+
+        if (!token) {
+          msg.reply(`Couldn't find the token: ${gCurrency}. Please ensure you entered the symbol/GUID correctly.`)
+          return
+        }
+
+        gCurrency = token.assetGuid
+        decimals = token.decimals
+        currencyStr = await utils.getExpLink(token.assetGuid, c.TOKEN)
+      } else {
+        currencyStr = "SYS"
+      }
+    } else {
+      gCurrency = "SYS"
+      currencyStr = "SYS"
+    }
+
     if (missionName == undefined) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: `Sorry, you must specify a mission name (one word) with a payout, i.e. ${prefix}create m75 2`}});
+      message.channel.send({embed: { color: c.FAIL_COL, description: `Sorry, you must specify a mission name (one word) with a payout, i.e. ${prefix}createmission m75 2 SYS`}});
       return;
     }
 
@@ -45,25 +71,27 @@ exports.createMission = async function(args, message, client) {
       message.channel.send({embed: { color: c.FAIL_COL, description: `Mission name cannot include a user, use this format: ${prefix}add mission10 @user`}});
       return;
     }
+
     var mission = await db.getMission(missionName)
     if (mission) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "That mission has already been created."}});
       return;
     }
+
     if (payout == undefined) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: `Sorry, you must specify a mission payout (in SYS), i.e. ${prefix}create m75 10`}});
+        message.channel.send({ embed: { color: c.FAIL_COL, description: `Sorry, you must specify a mission payout, i.e. ${prefix}createmission m75 10 SYS`}});
       return;
     }
 
     let payoutBig = new BigNumber(payout)
 
     if (payoutBig.isNaN() || payoutBig.lte(0)) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: `Your mission payout is not a number or is less than 0, try again i.e. ${prefix}create m75 10`}});
+        message.channel.send({ embed: { color: c.FAIL_COL, description: `Your mission payout is not a number or is less than 0, try again i.e. ${prefix}createmission m75 10 SYS`}});
       return;
     }
 
-    let satValue = utils.toSats(payoutBig, 8)
-    var missionNew = await db.createMission(missionName, satValue.toString())
+    let satValue = utils.toSats(payoutBig, decimals)
+    var missionNew = await db.createMission(missionName, satValue.toString(), gCurrency)
     if (missionNew) {
       message.channel.send({embed: { color: c.SUCCESS_COL, description: ":fireworks: Created a new mission named: **" + missionName + "**"}})
     } else {
@@ -259,26 +287,24 @@ exports.payMission = async function(args, message, client) {
       return
     }
 
-    var myProfile = await db.getProfile(message.author.id)
-    var myBalance = await db.getBalance(message.author.id, "SYS")
-    var missionName = args[0].toUpperCase()
-
     if (missionName == undefined) {
-     message.channel.send({embed: { color: c.FAIL_COL, description: `Please use this format to pay mission: ${prefix}pay m10`}});
-     return;
+      message.channel.send({ embed: { color: c.FAIL_COL, description: `Please use this format to pay mission: ${prefix}pay m10` } });
+      return;
     }
+
+    var missionName = args[0].toUpperCase()
     var mission = await db.getMission(missionName)
     if (!mission || !mission.active) {
-     message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, that mission does not exist or has been archived."}});
-     return;
+      message.channel.send({ embed: { color: c.FAIL_COL, description: "Sorry, that mission does not exist or has been archived." } });
+      return;
     }
 
+    var myProfile = await db.getProfile(message.author.id)
+    var myBalance = await db.getBalance(message.author.id, mission.currencyID)
+
     // make sure mission payer has the funds to pay all the users
-    let sysBalance = new BigNumber(myBalance.amount)
-    let reward = new BigNumber(mission.reward)
-    let totalReward = reward.times(mission.profiles.length)
-    if (totalReward.gt(sysBalance)) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you don't have enough funds to pay the mission!"}});
+    if (utils.hasEnoughBalance(myBalance, mission.reward)) {
+      message.channel.send({ embed: { color: c.FAIL_COL, description: "Sorry, you don't have enough funds to pay the mission!" } });
       return;
     }
 
@@ -289,11 +315,18 @@ exports.payMission = async function(args, message, client) {
     let targets = []
     let tipSuccess
     var txtUsers = ""
-    var tip = utils.toWholeUnit(new BigNumber(mission.reward), 8)
+    var tipAsset
+    if (mission.currencyID !== "SYS") {
+      tipAsset = await db.getSPTByGUID(mission.currencyID);
+    } else {
+      tipAsset = mission.currencyID
+    }
+    var dividedReward = new BigNumber(mission.reward / missionProfiles.length)
+    let tipPerParticipant = utils.toWholeUnit(dividedReward.decimalPlaces(tipAsset.decimals, 1), tipAsset.decimals)
     var totalTip = new BigNumber(0)
     for (var i = 0; i < missionProfiles.length; i++) {
       console.log(missionProfiles[i].userID)
-      var tipInfo = [1, tip, "SYS"]
+      var tipInfo = [1, tipPerParticipant, tipAsset]
       tipSuccess = await tips.tipUser(tipInfo, myProfile, missionProfiles[i], c.MISSION, client, message)
 
       if (tipSuccess) {
@@ -309,7 +342,7 @@ exports.payMission = async function(args, message, client) {
       } else {
         tipInfo[2] = tipInfo[2].toUpperCase()
       }
-      var actionStr = `Pay ${missionName}: ${tipInfo[1]} ${tipInfo[2]} | Total: ${totalTip.toString()}`
+      var actionStr = `Pay ${missionName}: ${tipInfo[1]} ${tipInfo[2].currencyStr} | Total: ${totalTip.toString()}`
       let log = await db.createLog(message.author.id, actionStr, targets, totalTip.toString())
     }
 
@@ -322,7 +355,7 @@ exports.payMission = async function(args, message, client) {
       arr.forEach(user => {
         line = line + user + "\n "
       })
-      message.channel.send({embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" +  utils.toWholeUnit(new BigNumber(mission.reward), 8).toString() + " " + config.ctick + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + config.ctick + ") in mission **" + missionName + "** listed below:" + line}})
+      message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipant.toString() + " " + tipAsset.currencyStr + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + tipAsset.currencyStr + ") in mission **" + missionName + "** listed below:" + line } })
     })
 
     exports.archiveMission(args, message, client)
