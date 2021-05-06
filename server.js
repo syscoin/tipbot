@@ -395,6 +395,7 @@ switch (command) {
                  if (i + 1 != profileBals.length) {
                    balString += "\n"
                  }
+                 token = undefined
                }
 
                user.send({embed: { color: c.SUCCESS_COL, description: `<\@${message.author.id}> has:\n ${balString.toLocaleString()}`}})
