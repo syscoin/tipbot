@@ -19,7 +19,7 @@ var Trade = require('./models/trade.js');
 
 exports.connect = function() {
   try {
-    mongoose.connect('mongodb://localhost/test',
+    mongoose.connect('mongodb://localhost/sys-main',
         {
           useNewUrlParser: true,
           useUnifiedTopology: true,
