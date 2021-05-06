@@ -1,0 +1,14 @@
+{
+  "withdraw": "withdraw [address] [amount] [symbol/guid]",
+  "tip": "tip @user [amount] [symbol/guid]",
+  "trade": "trade [amount] [symbol/guid] for [amount] [symbol/guid] with @user",
+  "accept": "accept [trade ID]",
+  "tradecancel": "tradecancel [trade ID]",
+  "auctioncancel": "auctioncancel [auction ID]",
+  "recent": "recent <symbol/guid",
+  "auction": "auction [amount] [token] [timeAmount][m/h/d] [reserveAmount]",
+  "bid": "bid [auction ID] [amount]",
+  "show": "show [auction ID]",
+  "find": "find [symbol/guid]",
+  "giveaway": "giveaway [timeAmount][s/m] [winnerAmount][w] [amount] [symbol/guid]"
+}

@@ -1,0 +1,23 @@
+{
+  "botname" : "Tipbot",
+  "botid" : "",
+  "cname" : "SYS",
+  "ctick" : "SYS",
+  "prefix" : "!",
+  "discordKey" : "",
+  "discordAdminRole" : "",
+  "adminRoleID" : "",
+  "discordServer" : "",
+  "missionChannel" : "",
+  "giveawayChannel" : "",
+  "tradeChannel" : "",
+  "auctionChannel" : "",
+  "tipChannel" : "",
+  "tipMin" : 0.0001,
+  "tipMaxDecimals" : 4,
+  "tradeTime" : 5,
+  "maxAuctionTimeDays" : 5,
+  "recentTrades" : 5,
+  "blockURL" : "https://sys-explorer.tk",
+  "mnemonic" : "toss club toe shoe turtle dog handle chair cat beat disinterest insane elevator beauty movie"
+}

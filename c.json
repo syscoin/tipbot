@@ -1,0 +1,13 @@
+{
+  "GENERAL": 0,
+  "MISSION": 1,
+  "TRADE": 2,
+  "GIVEAWAY": 3,
+  "AUCTION": 4,
+  "EXCHANGE": 5,
+  "ADDRESS": 0,
+  "TOKEN": 1,
+  "TX": 2,
+  "SUCCESS_COL": 65280,
+  "FAIL_COL": 16711680
+}
