@@ -51,7 +51,7 @@ function getHelpCommands(parm) {
 
         **\`${prefix}find [symbol/guid]\`**  Finds and returns some of the auctions with the given token, ending soonest.
 
-        **\`${prefix}endsoon\`**  Finds and returns some of the auctions that are ending soonest.
+        **\`${prefix}list\`**  Finds and returns some of the auctions that are ending soonest.
 
             `;
 
