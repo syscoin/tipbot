@@ -1,6 +1,6 @@
 var exports = module.exports = {};
 
-var SYS_EMOJI = ":syscoin:"
+var SYS_EMOJI = ":boom:"
 var GEN_EMOJI = ":zap:"
 
 const com = require('./commandUsage.json')
@@ -29,14 +29,30 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
       let currencyStr = ""
       let decimals = 8
       let emoji = SYS_EMOJI
+      var msgChanOrUser
+
+      var discUser = await client.users.fetch(fromProfile.userID)
+
+      if (!discUser) {
+        console.log(`User ${fromProfile.userID} not found.`)
+        return
+      }
+
+      if (!message) {
+        msgChanOrUser = discUser
+      } else {
+        msgChanOrUser = message.channel
+      }
 
       if (fromProfile.userID === toProfile.userID) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: `You can't send to yourself.`}})
+        msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `You can't send to yourself.`}})
+        utils.isSuccessMsgReact(false, message)
         return false
       }
 
       if (utils.decimalCount(args[1].toString()) > config.tipMaxDecimals) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: `You can only send tips with a maximum of ${config.tipMaxDecimals} decimal places.`}})
+        msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `You can only send tips with a maximum of ${config.tipMaxDecimals} decimal places.`}})
+        utils.isSuccessMsgReact(false, message)
         return false
       }
 
@@ -49,7 +65,7 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
           token = await utils.getSPT(tipCurrency)
 
           if (!token) {
-            message.channel.send({embed: { color: c.FAIL_COL, description: `Couldn't find the token: ${tipCurrency}. Please ensure you entered the symbol/GUID correctly.`}})
+            msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `Couldn't find the token: ${tipCurrency}. Please ensure you entered the symbol/GUID correctly.`}})
             return
           }
 
@@ -69,27 +85,31 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
 
       if (utils.decimalCount(args[1].toString()) > decimals) {
         if (decimals > 0) {
-          message.channel.send({embed: { color: c.FAIL_COL, description: `You are trying to use too many decimals for the ${currencyStr} amount. It can't have any more than ${decimals} decimals.`}})
+          msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `You are trying to use too many decimals for the ${currencyStr} amount. It can't have any more than ${decimals} decimals.`}})
         } else {
-          message.channel.send({embed: { color: c.FAIL_COL, description: `${currencyStr} is a non-divisible token. It can't have any decimals.`}})
+          msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `${currencyStr} is a non-divisible token. It can't have any decimals.`}})
         }
+        utils.isSuccessMsgReact(false, message)
         return
       }
 
       let fromProfileBalance = await db.getBalance(fromProfile.userID, tipCurrency)
       let toProfileBalance = await db.getBalance(toProfile.userID, tipCurrency)
       if (!fromProfile) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "You must first register with the tipbot and deposit crypto to send funds."}})
+        msgChanOrUser.send({embed: { color: c.FAIL_COL, description: "You must first register with the tipbot and deposit crypto to send funds."}})
+        utils.isSuccessMsgReact(false, message)
         return false
       }
 
       if (!toProfile) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "The user you are trying to send funds to is not registered with the tipbot."}})
+        msgChanOrUser.send({embed: { color: c.FAIL_COL, description: "The user you are trying to send funds to is not registered with the tipbot."}})
+        utils.isSuccessMsgReact(false, message)
         return false
       }
 
       if (!fromProfileBalance) {
-        message.channel.send({embed: { color: 16776960, description: "You do not have a registered balance for this currency."}})
+        msgChanOrUser.send({embed: { color: 16776960, description: "You do not have a registered balance for this currency."}})
+        utils.isSuccessMsgReact(false, message)
         return false
       }
       if (!toProfileBalance) {
@@ -102,12 +122,14 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
       let tipWhole = args[1].decimalPlaces(decimals, 1)
 
       if (tipWhole.isNaN()) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "You haven't entered a valid number for the amount to send."}})
+        msgChanOrUser.send({embed: { color: c.FAIL_COL, description: "You haven't entered a valid number for the amount to send."}})
+        utils.isSuccessMsgReact(false, message)
         return false
       }
 
       if (tipWhole.lte(0)) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "Amount to send must be more than 0."}})
+        msgChanOrUser.send({embed: { color: c.FAIL_COL, description: "Amount to send must be more than 0."}})
+        utils.isSuccessMsgReact(false, message)
         return false
       }
 
@@ -116,14 +138,12 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
       if (type !== c.TRADE && type !== c.AUCTION) {
         enoughBalance = utils.hasEnoughBalance(fromProfileBalance, tipInSats)
       } else {
-        console.log(fromBalanceAmount.toString())
-        console.log(tipWhole.toString())
-        console.log(tipInSats.toString())
         enoughBalance = fromBalanceAmount.gte(tipInSats)
       }
 
       if (!enoughBalance) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: `<@${fromProfile.userID}> you don't have enough ${currencyStr}. Please deposit more to continue.`}})
+        msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `<@${fromProfile.userID}> you don't have enough ${currencyStr}. Please deposit more to continue.`}})
+        utils.isSuccessMsgReact(false, message)
         return
       }
 
@@ -147,6 +167,12 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
       if (type === c.GENERAL) {
         message.channel.send({embed: { color: c.SUCCESS_COL, description: `${emoji} <@${fromProfile.userID}> sent **${tipWhole.toString()}** ${currencyStr} to <@${toProfile.userID}>! ${emoji}`}});
       }
+
+      var actionStr = `Tip: ${fromProfile.userID} | ${tipWhole.toString()} ${tipCurrency} to ${toProfile.userID}`
+      console.log(actionStr)
+      let log = await db.createLog(fromProfile.userID, actionStr, [toProfile.userID], tipWhole.toString())
+
+      utils.isSuccessMsgReact(true, message)
       return true
     }
   } catch (error) {
