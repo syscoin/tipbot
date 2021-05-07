@@ -162,8 +162,6 @@ client.on('message', async message => {
        }
      }
 
-for(var i = 0; i < message.embeds.length; i++) { console.log(`LOG: ${message.createdTimestamp} #${message.channel.name} ${message.author.id} <@${message.author.id}>: ${message.embeds[i].description}`) }
-
 var splitter = message.content.replace(" ", ":splitter185151813367::")
 var fixspaces = splitter.replace(":splitter185151813367:::splitter185151813367::", ":splitter185151813367::")
 var splitted = fixspaces.split(":splitter185151813367::")
