@@ -93,11 +93,6 @@ exports.withdraw = async function(args, message, client, signer, sysjs) {
     HDSigner = signer
     syscoinjs = sysjs
 
-    if (message.channel.name == undefined) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: ":rolling_eyes::point_up: Sorry but this command only works in the public channel."}});
-      return
-    }
-
     var myProfile = await db.getProfile(message.author.id)
 
     if (!myProfile) {
@@ -154,6 +149,7 @@ exports.withdraw = async function(args, message, client, signer, sysjs) {
       if (myBalance) {
         if (value == "all") {
           withdrawAmount = new BN(myBalance.amount)
+          withdrawWhole = new BigNumber(withdrawAmount).decimalPlaces(decimals, 1)
         } else {
           // make sure the amount can't have a higher precision than is supported
           withdrawWhole = new BigNumber(value).decimalPlaces(decimals, 1)
