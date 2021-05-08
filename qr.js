@@ -27,7 +27,7 @@ exports.getQR = async function(userID) {
   } else {
     await qr.toFile(`./qr/${userID}.png`, profile.address, {
       color: {
-        dark: "#0011a8",
+        dark: "#000A63",
         light: "#ffffff"
       }
     }, function (err) {
