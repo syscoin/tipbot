@@ -17,6 +17,7 @@ const c = require('./c.json')
 const config = require('./config.json')
 var prefix = config.prefix
 const MESSAGE_CHAR_LIMIT = 1980;
+const FOUNDATION_ADD = "sys1q6u9ey7qjh3fmnz5gsghcmpnjlh2akem4xm38sw"
 
 // requires
 const fs = require('fs')
@@ -72,6 +73,7 @@ const auctions = require('./auctions.js')
 const endWatcher = require('./endWatcher.js')(client)
 const giveaways = require('./giveaway.js')
 const missions = require('./missions.js')
+const qr = require('./qr.js')
 const tips = require('./tips.js')
 const trades = require('./trades.js')
 const utils = require('./utils.js')
@@ -152,6 +154,8 @@ client.on('message', async message => {
          if (mission) {
            if (mission.active) {
              let missionUpdated = await db.addProfileToMission(message.author.id, missionName[0])
+           } else {
+             message.channel.send({embed: { color: c.FAIL_COL, description: `Mission ${missionName[0]} is no longer active.`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
            }
          } else {
            console.log(`Mission ${missionName} not found`)
@@ -229,8 +233,28 @@ switch (command) {
     try {
       var myProfile = await db.getProfile(message.author.id)
       if (myProfile) {
-        message.author.send({embed: { color: c.SUCCESS_COL, description: "Hi, **<@" + message.author.id + ">** Any coins/tokens sent to this address will be added to your " + config.botname + ` balance within a few minutes.\n\n` +
-                                                    `:warning: IMPORTANT: Make sure that all transactions sent to this deposit address have been confirmed at least once before using the !balance command, otherwise your funds might be lost. :warning:\n\nYour personal deposit address:\n\n${myProfile.address}`}})
+        let desc = `Hi, **<@${message.author.id}>** Any coins/tokens sent to this address will be added to your ${config.botname} balance within a few minutes.` +
+            `\n\n:warning: IMPORTANT: Make sure that all transactions sent to this deposit address have been confirmed at least once before using the !balance command, otherwise your funds might be lost. :warning:\n\nYour personal deposit address:\n\n${myProfile.address}`
+
+        try {
+          var qrPath = await qr.getQR(myProfile.userID)
+          var attachment = new Discord.MessageAttachment(qrPath)
+        } catch (error) {
+          console.log("Error getting qrpath")
+          console.log(error)
+        }
+
+        var embed = new Discord.MessageEmbed()
+            .setColor(c.SUCCESS_COL)
+            .setDescription(desc)
+
+        if (qrPath) {
+          embed.attachFiles(attachment)
+                .setImage(`attachment://${message.author.id}.png`)
+        }
+
+        message.author.send(embed)
+
       }
     } catch (error) {
       console.log(error)
@@ -411,7 +435,7 @@ switch (command) {
              message.channel.send({embed: { color: c.SUCCESS_COL, description: `:rolling_eyes::point_up: <@${message.author.id}>, I've sent your balance in a private message.`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
            }
           } else {
-            message.channel.send({embed: { color: 16776960, description: `Use ${prefix}register to create a ${config.botname} profile!` }}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
+            message.channel.send({embed: { color: c.FAIL_COL, description: `Use ${prefix}register to create a ${config.botname} profile!` }}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
             return false
           }
         }
@@ -420,7 +444,28 @@ switch (command) {
     }
     break
 
-   case "verifytoken":
+  case "foundation":
+    let backendAccount = null
+    let balanceStr = ""
+    try {
+      backendAccount = await sjs.utils.fetchBackendAccount(backendURL, (await db.getProfile(message.author.id)).address, {})
+    } catch (error) {
+      console.log("Error getting foundation account")
+      console.log(error)
+    }
+
+    let infoStr = `The Syscoin Foundation is the official body representing Syscoin Platform. The board is broadly responsible for the growth and adoption of the platform, and its members play a guiding and steering role in its development.` +
+                  `\nThe bigger their warchest the more effect they can have in the development, promotion and adoption of Syscoin. Any donations will be very much appreciated!` +
+                  `\n\nFoundation address:\n\n${FOUNDATION_ADD}`
+    if (backendAccount) {
+      var bal = utils.toWholeUnit(new BigNumber(backendAccount.balance), 8)
+      balanceStr = `\n\nThe Syscoin Foundation currently has ${bal} ${config.ctick}.`
+      infoStr += balanceStr
+    }
+    message.channel.send({embed: { color: c.SUCCESS_COL, title: "Syscoin Foundation", description: infoStr }}).then(msg => {utils.deleteMsgAfterDelay(msg, 25000)})
+    break
+
+  case "verifytoken":
     // verify a token so that users can refer to a token with its symbol instead of guid
 
     try {
