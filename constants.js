@@ -19,6 +19,8 @@ function getHelpCommands(parm) {
 
       **\`${prefix}tip @user [amount] [symbol/guid]\`**  Send some ${config.ctick} or SPTs to another user.
 
+      **\`${prefix}foundation\`**  Find out more about the Syscoin Foundation.
+
           `;
     break
 
