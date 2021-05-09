@@ -101,10 +101,7 @@ async function cancelTrade(message, id, timedOut) {
     }
 
     // unlock the amount that was locked for the trade
-    var oldBalance = await db.getBalance(trade.userA, trade.tokenA)
-    var oldLocked = new BigNumber(oldBalance.lockedAmount)
-    var newLocked = oldLocked.minus(trade.amountA)
-    var newBalance = await db.editBalanceLocked(trade.userA, trade.tokenA, newLocked)
+    await utils.unlockAmount(trade.tokenA, trade.userA, trade.amountA)
 
     var tradeDeleted = await db.deleteTrade(id)
 
@@ -348,10 +345,7 @@ exports.acceptTrade = async function(message, args, client) {
 
         if (completedTrade) {
           // unlock the amount that was locked for the trade
-          var oldBalance = await db.getBalance(completedTrade.userA, completedTrade.tokenA)
-          var oldLocked = new BigNumber(oldBalance.lockedAmount)
-          var newLocked = oldLocked.minus(completedTrade.amountA)
-          var newBalance = await db.editBalanceLocked(completedTrade.userA, completedTrade.tokenA, newLocked)
+          await utils.unlockAmount(completedTrade.tokenA, completedTrade.userA, completedTrade.amountA)
 
           message.channel.send({embed: { color: c.SUCCESS_COL, description: `Trade ${trade.tradeID} successfully completed! Congratulations!`}})
         }

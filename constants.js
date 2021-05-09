@@ -19,6 +19,8 @@ function getHelpCommands(parm) {
 
       **\`${prefix}tip @user [amount] [symbol/guid]\`**  Send some ${config.ctick} or SPTs to another user.
 
+      **\`${prefix}foundation\`**  Find out more about the Syscoin Foundation.
+
           `;
     break
 
@@ -51,7 +53,7 @@ function getHelpCommands(parm) {
 
         **\`${prefix}find [symbol/guid]\`**  Finds and returns some of the auctions with the given token, ending soonest.
 
-        **\`${prefix}endsoon\`**  Finds and returns some of the auctions that are ending soonest.
+        **\`${prefix}list\`**  Finds and returns some of the auctions that are ending soonest.
 
             `;
 

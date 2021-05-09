@@ -17,6 +17,7 @@ const c = require('./c.json')
 const config = require('./config.json')
 var prefix = config.prefix
 const MESSAGE_CHAR_LIMIT = 1980;
+const FOUNDATION_ADD = "sys1q6u9ey7qjh3fmnz5gsghcmpnjlh2akem4xm38sw"
 
 // requires
 const fs = require('fs')
@@ -72,6 +73,7 @@ const auctions = require('./auctions.js')
 const endWatcher = require('./endWatcher.js')(client)
 const giveaways = require('./giveaway.js')
 const missions = require('./missions.js')
+const qr = require('./qr.js')
 const tips = require('./tips.js')
 const trades = require('./trades.js')
 const utils = require('./utils.js')
@@ -152,6 +154,8 @@ client.on('message', async message => {
          if (mission) {
            if (mission.active) {
              let missionUpdated = await db.addProfileToMission(message.author.id, missionName[0])
+           } else {
+             message.channel.send({embed: { color: c.FAIL_COL, description: `Mission ${missionName[0]} is no longer active.`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
            }
          } else {
            console.log(`Mission ${missionName} not found`)
@@ -161,8 +165,6 @@ client.on('message', async message => {
          message.channel.send({embed: { color: c.FAIL_COL, description: "Error adding to mission."}})
        }
      }
-
-for(var i = 0; i < message.embeds.length; i++) { console.log(`LOG: ${message.createdTimestamp} #${message.channel.name} ${message.author.id} <@${message.author.id}>: ${message.embeds[i].description}`) }
 
 var splitter = message.content.replace(" ", ":splitter185151813367::")
 var fixspaces = splitter.replace(":splitter185151813367:::splitter185151813367::", ":splitter185151813367::")
@@ -215,6 +217,7 @@ switch (command) {
         break
 
       default:
+        message.author.send({embed: { color: c.SUCCESS_COL, description: constants.help("main")}})
         break
     }
     break
@@ -230,8 +233,28 @@ switch (command) {
     try {
       var myProfile = await db.getProfile(message.author.id)
       if (myProfile) {
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: "Hi, **<@" + message.author.id + ">** Any coins/tokens sent to this address will be added to your " + config.botname + ` balance within a few minutes.\n\n` +
-                                                    `:warning: IMPORTANT: Make sure that all transactions sent to this deposit address have been confirmed at least once before using the !balance command, otherwise your funds might be lost. :warning:\n\nYour personal deposit address:\n\n${myProfile.address}`}})
+        let desc = `Hi, **<@${message.author.id}>** Any coins/tokens sent to this address will be added to your ${config.botname} balance within a few minutes.` +
+            `\n\n:warning: IMPORTANT: Make sure that all transactions sent to this deposit address have been confirmed at least once before using the !balance command, otherwise your funds might be lost. :warning:\n\nYour personal deposit address:\n\n${myProfile.address}`
+
+        try {
+          var qrPath = await qr.getQR(myProfile.userID)
+          var attachment = new Discord.MessageAttachment(qrPath)
+        } catch (error) {
+          console.log("Error getting qrpath")
+          console.log(error)
+        }
+
+        var embed = new Discord.MessageEmbed()
+            .setColor(c.SUCCESS_COL)
+            .setDescription(desc)
+
+        if (qrPath) {
+          embed.attachFiles(attachment)
+                .setImage(`attachment://${message.author.id}.png`)
+        }
+
+        message.author.send(embed)
+
       }
     } catch (error) {
       console.log(error)
@@ -258,7 +281,7 @@ switch (command) {
                         `\nSize on Disk: ~${blockSizeGB} GB`
         }})
       } catch (error) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "Unable to get the blockchain data. Please try again later."}})
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Unable to get the blockchain data. Please try again later."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         console.error(error)
       }
     }
@@ -269,7 +292,8 @@ switch (command) {
   case "withdrawal":
     // withdraws the specified amount of SYS and SPTs from a user's tipbot account
 
-    if (message.channel.id == config.tipChannel) {
+    if (message.channel.id == config.tipChannel
+        || message.channel.type === "dm") {
       withdraws.withdraw(args, message, client, HDSigner, syscoinjs)
     }
     break
@@ -284,7 +308,8 @@ switch (command) {
           || message.channel.id == config.tradeChannel
           || message.channel.id == config.auctionChannel
           || message.channel.id == config.missionChannel
-          || message.channel.id == config.giveawayChannel) {
+          || message.channel.id == config.giveawayChannel
+          || message.channel.type == "dm") {
 
         // get the relevant profile's info
         const userProfile = await db.getProfile(message.author.id)
@@ -395,56 +420,82 @@ switch (command) {
                  if (i + 1 != profileBals.length) {
                    balString += "\n"
                  }
+                 token = undefined
                }
 
                user.send({embed: { color: c.SUCCESS_COL, description: `<\@${message.author.id}> has:\n ${balString.toLocaleString()}`}})
                if (balWasUpdated) {
-                 user.send({embed: { color: c.SUCCESS_COL, description: `A new deposit address has been created for you, do not send any more funds to the previous deposit address:\n\n${newAddress}`}})
+                 user.send({embed: { color: c.SUCCESS_COL, description: `A new deposit address has been created for you, do NOT send any more funds to the previous deposit address.\n\n` +
+                            `:warning: IMPORTANT: Make sure that all transactions sent to this new deposit address have been confirmed at least once before using the !balance command, otherwise your funds might be lost. :warning:\n\n${newAddress}`}})
                }
              }
-         makeBalTransferPrivate()
-         })
-         message.channel.send({embed: { color: c.SUCCESS_COL, description: `:rolling_eyes::point_up: <@${message.author.id}>, I've sent your balance in a private message.`}}).then(msg => {msg.delete({timeout: 3000}); message.delete({timeout: 3000})})
-        } else {
-          message.channel.send({embed: { color: 16776960, description: `Use ${prefix}register to create a ${config.botname} profile!` }}) }
-          return false;
+           makeBalTransferPrivate()
+           })
+           if (!message.channel.type === "dm") {
+             message.channel.send({embed: { color: c.SUCCESS_COL, description: `:rolling_eyes::point_up: <@${message.author.id}>, I've sent your balance in a private message.`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
+           }
+          } else {
+            message.channel.send({embed: { color: c.FAIL_COL, description: `Use ${prefix}register to create a ${config.botname} profile!` }}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
+            return false
+          }
         }
     } catch (error) {
       console.log(error)
     }
     break
 
-   case "verifytoken":
+  case "foundation":
+    let backendAccount = null
+    let balanceStr = ""
+    try {
+      backendAccount = await sjs.utils.fetchBackendAccount(backendURL, (await db.getProfile(message.author.id)).address, {})
+    } catch (error) {
+      console.log("Error getting foundation account")
+      console.log(error)
+    }
+
+    let infoStr = `The Syscoin Foundation is the official body representing Syscoin Platform. The board is broadly responsible for the growth and adoption of the platform, and its members play a guiding and steering role in its development.` +
+                  `\nThe bigger their warchest the more effect they can have in the development, promotion and adoption of Syscoin. Any donations will be very much appreciated!` +
+                  `\n\nFoundation address:\n\n${FOUNDATION_ADD}`
+    if (backendAccount) {
+      var bal = utils.toWholeUnit(new BigNumber(backendAccount.balance), 8)
+      balanceStr = `\n\nThe Syscoin Foundation currently has ${bal} ${config.ctick}.`
+      infoStr += balanceStr
+    }
+    message.channel.send({embed: { color: c.SUCCESS_COL, title: "Syscoin Foundation", description: infoStr }}).then(msg => {utils.deleteMsgAfterDelay(msg, 25000)})
+    break
+
+  case "verifytoken":
     // verify a token so that users can refer to a token with its symbol instead of guid
 
     try {
       if (!utils.checkAdminRole(message)) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
 
       if (args[0] != undefined) {
         let asset = await sjs.utils.fetchBackendAsset(backendURL, args[0])
         if (asset.assetGuid == undefined) {
-          message.channel.send({embed: { color: c.FAIL_COL, description: "Cannot find a SPT with the given GUID. Please ensure it's correct."}})
+          message.channel.send({embed: { color: c.FAIL_COL, description: "Cannot find a SPT with the given GUID. Please ensure it's correct."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
           return
         }
         let symbol = base64.decode(asset.symbol).toUpperCase()
         let sptExists = await db.getSPT(symbol)
 
         if (sptExists) {
-          message.channel.send({embed: { color: c.FAIL_COL, description: "Token symbol already in use."}});
+          message.channel.send({embed: { color: c.FAIL_COL, description: "Token symbol already in use."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
           return
         }
 
         let spt = await db.createSPT(symbol, args[0])
         if (spt) {
-          message.channel.send({embed: { color: c.SUCCESS_COL, description: `Symbol ${symbol} has now been linked to GUID ${args[0]}`}});
+          message.channel.send({embed: { color: c.SUCCESS_COL, description: `Symbol ${symbol} has now been linked to GUID ${args[0]}`}})
         } else {
-          message.channel.send({embed: { color: c.FAIL_COL, description: "Error verifying token."}});
+          message.channel.send({embed: { color: c.FAIL_COL, description: "Error verifying token."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         }
       } else {
-        message.channel.send({embed: { color: c.FAIL_COL, description: `Usage: ${prefix}verifytoken [guid]`}})
+        message.channel.send({embed: { color: c.FAIL_COL, description: `Usage: ${prefix}verifytoken [guid]`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
       }
     } catch (error) {
       console.log(error)
@@ -491,6 +542,11 @@ switch (command) {
     if (message.channel.id == config.missionChannel) {
       missions.listMissionProfiles(args, message, client)
     }
+
+    // retrieves and prints a list of the auctions that will be ending soon
+    if (message.channel.id == config.auctionChannel) {
+      auctions.endingSoon(message, client)
+    }
     break
 
   case "paymission":
@@ -512,7 +568,7 @@ switch (command) {
 
     try {
       if (!utils.checkAdminRole(message)) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
 
@@ -533,7 +589,7 @@ switch (command) {
               let log = await db.createLog(message.author.id, actionStr, [user.id])
             }
           } else {
-            message.author.send({embed: { color: c.FAIL_COL, description: `:warning: The user you are attempting to restrict is not a registered user.` }})
+            message.author.send({embed: { color: c.FAIL_COL, description: `:warning: The user you are attempting to restrict is not a registered user.` }}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
           }
         });
 
@@ -548,7 +604,7 @@ switch (command) {
 
     try {
       if (!utils.checkAdminRole(message)) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
 
@@ -563,7 +619,7 @@ switch (command) {
           message.channel.send({embed: { color: c.SUCCESS_COL, description: `<@${nameID}> is registered and not restricted.`}})
         }
       } else {
-        message.channel.send({embed: { color: c.FAIL_COL, description: `<@${nameID}> has not registered with me!  User must type **${prefix}register**`}})
+        message.channel.send({embed: { color: c.FAIL_COL, description: `<@${nameID}> has not registered with me!  User must type **${prefix}register**`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
       }
     } catch (error) {
       console.log(error)
@@ -575,7 +631,7 @@ switch (command) {
 
     try {
       if (!utils.checkAdminRole(message)) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
 
@@ -596,7 +652,7 @@ switch (command) {
               let log = await db.createLog(message.author.id, actionStr, [user.id])
             }
           } else {
-            message.author.send({embed: { color: c.FAIL_COL, description: `:warning: The user you are attempting to unrestrict is not a valid user.` }})
+            message.author.send({embed: { color: c.FAIL_COL, description: `:warning: The user you are attempting to unrestrict is not a valid user.` }}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
           }
         });
       }
@@ -621,47 +677,38 @@ switch (command) {
     // used to send a SYS or SPT tip to another user's tipbot account
 
     try {
-      if (message.channel.name == undefined) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: ":rolling_eyes::point_up: Sorry but this command only works in the public channel."}});
+      if (message.channel.type === "dm") {
+        message.channel.send({embed: { color: c.FAIL_COL, description: ":rolling_eyes::point_up: Sorry but this command only works in the public channel."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
 
       var myProfile = await db.getProfile(message.author.id)
       if (myProfile.restricted) {
-         message.channel.send({embed: { color: c.FAIL_COL, description: "<@" + message.author.id + "> Sorry, your account has been restricted.  Please contact a member of the Syscoin Team."}})
+         message.channel.send({embed: { color: c.FAIL_COL, description: "<@" + message.author.id + "> Sorry, your account has been restricted.  Please contact a member of the Syscoin Team."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
          return
       }
 
       var receiver = message.mentions.users.first()
       if (!receiver) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "Please specify a valid user and " + config.ctick + "/token amount to tip them.\nUse `" + prefix + "tip [user] [amount] [symbol/guid]` to continue.\nExample: `" + prefix + "tip @jagatoshi 100`"}})
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Please specify a valid user and " + config.ctick + "/token amount to tip them.\nUse `" + prefix + "tip [user] [amount] [symbol/guid]` to continue.\nExample: `" + prefix + "tip @jagatoshi 100 sys`"}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
       if (receiver.id == message.author.id) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "You cannot tip yourself."}})
+        message.channel.send({embed: { color: c.FAIL_COL, description: "You cannot tip yourself."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
 
       args[1] = new BigNumber(args[1])
       if (args[1].isNaN()) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "Please ensure you have entered a valid number that is more than 0 for the tip amount."}})
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Please ensure you have entered a valid number that is more than 0 for the tip amount."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
       if (args[1].lt(config.tipMin)) {
-        message.channel.send({embed: { color: c.FAIL_COL, description: "You must tip at least " + config.tipMin + " " + config.ctick + ". Too much dust will make it messy in here."}})
+        message.channel.send({embed: { color: c.FAIL_COL, description: "You must tip at least " + config.tipMin + " " + config.ctick + ". Too much dust will make it messy in here."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
 
       let tipSuccess = await tips.tipUser(args, myProfile, await ifProfile(receiver.id), false, client, message)
-      if (tipSuccess) {
-        if (args[2] == undefined) {
-          args[2] = "SYS"
-        } else {
-          args[2] = args[2].toUpperCase()
-        }
-        var actionStr = `Tip: ${args[2]}`
-        let log = await db.createLog(message.author.id, actionStr, [receiver.id], args[1])
-      }
     } catch (error) {
       console.log(error)
     }
@@ -675,16 +722,15 @@ switch (command) {
           || message.channel.id == config.tradeChannel
           || message.channel.id == config.auctionChannel
           || message.channel.id == config.missionChannel
-          || message.channel.id == config.giveawayChannel) {
+          || message.channel.id == config.giveawayChannel
+          || message.channel.type === "dm") {
 
         let profileExists = await ifProfile(message.author.id)
         if (profileExists) {
-            message.channel.send({embed: { color: c.FAIL_COL, description: "You already have a " + config.botname + " profile."}}).then(msg => {msg.delete({timeout: 15000}); message.delete({timeout: 15000})})
+            message.channel.send({embed: { color: c.FAIL_COL, description: "You already have a " + config.botname + " profile."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         } else {
          let newAddress = await HDSigner.getNewReceivingAddress()
          ls.set("receiveIndex", HDSigner.receivingIndex)
-         console.log(ls.get("receiveIndex"))
-         console.log("Issued receiving address " + newAddress + " to " + message.author.username + "(" + message.author.id + ")")
 
          let profile = db.createProfile(message.author.id, newAddress)
          let sysBalance = db.createBalance(message.author.id, "SYS", 0)
@@ -697,6 +743,7 @@ switch (command) {
                 'creators and hosters of this bot hold no responsibility if the unlikely loss of funds occurs. Do not send high value amounts of crypto to this bot.'}})
          })
          var actionStr = `Register: ${message.author.id} || Receive Index: ${HDSigner.receivingIndex} | Address: ${newAddress}`
+         console.log(actionStr)
          let log = await db.createLog(message.author.id, actionStr, [])
         }
       }
@@ -756,13 +803,6 @@ switch (command) {
     }
     break
 
-  case "endsoon":
-    // retrieves and prints a list of the auctions that will be ending soon
-    if (message.channel.id == config.auctionChannel) {
-      auctions.endingSoon(message, client)
-    }
-    break
-
   case "show":
     // retrieves and prints the information of the auction with the given ID
     if (message.channel.id == config.auctionChannel) {
@@ -782,7 +822,7 @@ switch (command) {
     // within a given time and will give the specified amount of SYS or SPTs to the selected winners
 
     if (!utils.checkAdminRole(message)) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
+      message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
       return
     }
 

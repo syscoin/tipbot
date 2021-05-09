@@ -1,9 +1,14 @@
 var exports = module.exports = {};
 
+var FAIL_EMOJI = "❌"
+var SUCCESS_EMOJI = "✅"
+
 const base64 = require('base-64');
 const Discord = require('discord.js');
 
 const BigNumber = require('bignumber.js')
+const lux = require('luxon')
+const DateTime = lux.DateTime
 
 const c = require('./c.json')
 const config = require('./config.json')
@@ -202,6 +207,59 @@ exports.getExpLink = async function(data, type, title) {
   }
 }
 
+exports.unlockAmount = async function(currency, userID, amount) {
+  var balance = await db.getBalance(userID, currency)
+  var currentLocked = new BigNumber(balance.lockedAmount)
+  var amountBig = new BigNumber(amount)
+  var newLocked = currentLocked.minus(amountBig)
+  return db.editBalanceLocked(userID, currency, newLocked)
+}
+
+exports.deleteMsgAfterDelay = function(msg, tOut) {
+  msg.delete({timeout: tOut})
+}
+
+exports.isSuccessMsgReact = function(isSent, message) {
+  if (message !== undefined) {
+    if (isSent) {
+      message.react(SUCCESS_EMOJI)
+    } else {
+      message.react(FAIL_EMOJI)
+    }
+  }
+}
+
 exports.hasAllArgs = function(args, numOfArgs) {
   return args.length >= numOfArgs
+}
+
+exports.getRemainingTime = function(endDate) {
+  var now = lux.DateTime.now()
+  var end = lux.DateTime.fromISO(endDate.toISOString())
+
+  return end.diff(now, ['days', 'hours', 'minutes', 'seconds'])
+}
+
+exports.getRemainingTimeStr = function(endDate) {
+  var endsIn = exports.getRemainingTime(endDate)
+
+  var timeLeft = ""
+
+  if (endsIn.values.days > 0) {
+    timeLeft += `${endsIn.values.days} day(s), `
+  }
+
+  if (endsIn.values.hours > 0) {
+    timeLeft += `${endsIn.values.hours} hour(s), `
+  }
+
+  if (endsIn.values.minutes > 0) {
+    timeLeft += `${endsIn.values.minutes} minute(s), `
+  }
+
+  if (endsIn.values.seconds > 0) {
+    timeLeft += `${endsIn.values.seconds.toFixed(0)} second(s).`
+  }
+
+  return timeLeft
 }

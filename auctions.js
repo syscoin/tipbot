@@ -8,7 +8,7 @@ const c = require('./c.json')
 const config = require('./config.json')
 var prefix = config.prefix
 
-const base64 = require('base-64');
+const base64 = require('base-64')
 
 const BigNumber = require('bignumber.js')
 BigNumber.config({ DECIMAL_PLACES: 8 })
@@ -122,7 +122,9 @@ async function printAuctions(auctions, type, message, client) {
       var bidWhole = utils.toWholeUnit(highestBidAmount, 8)
       var reserveWhole = utils.toWholeUnit(reserve, 8)
 
-      auctionString += `\n\nAuction ${a.auctionID} | End time: ${a.endTime}`
+      var timeLeft = utils.getRemainingTimeStr(a.endTime)
+
+      auctionString += `\n\nAuction ${a.auctionID} | Ends in: ${timeLeft}`
       auctionString += `\n\t${tokenWhole} ${tokenStr} | Bid: ${bidWhole} ${config.ctick} | Reserve price: ${reserveWhole} ${config.ctick}`
     }
 
@@ -142,7 +144,6 @@ async function printAuctions(auctions, type, message, client) {
 * 0 - amount, 1 - token, 2 - timeAmount with s/m/h/d, 3 - reserve
 */
 exports.createAuction = async function(message, args) {
-
   try {
     var myProfile = await db.getProfile(message.author.id)
 
@@ -200,7 +201,12 @@ exports.createAuction = async function(message, args) {
       return
     }
 
-    if (utils.decimalCount(args[0]) > token.decimals) {
+    if (utils.decimalCount(args[1].toString()) > config.tipMaxDecimals) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `You can only create auctions with a maximum of ${config.tipMaxDecimals} decimal places.`}})
+      return false
+    }
+
+    if (utils.decimalCount(args[0].toString()) > token.decimals) {
       if (token.decimals > 0) {
         message.channel.send({embed: { color: c.FAIL_COL, description: `You are trying to use too many decimals for the ${args[1]} amount. It can't have any more than ${token.decimals} decimals.`}})
       } else {
@@ -252,11 +258,13 @@ exports.createAuction = async function(message, args) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "Error finding token."}})
       }
 
+      var timeLeft = utils.getRemainingTimeStr(endDate)
+
       message.channel.send({embed: { color: c.SUCCESS_COL,
-        description: `\nAuction ID: ${auctionIndex}` +
-                      `\n<@${message.author.id}> is auctioning ${amounts[0]} ${tokenStr}` +
+        description: `\nAuction ID: ${auctionIndex} | ${tokenStr}` +
+                      `\n<@${message.author.id}> is auctioning ${amounts[0]} out of max ${token.maxSupply} in existence` +
                       `\nReserve price: ${amounts[2]} ${config.ctick}` +
-                      `\nAuction end time: ${endDate}` +
+                      `\nEnds in: ${timeLeft}` +
                       `\nAuction successfully created. Time to get bidding!`
       }})
     } else {
@@ -304,6 +312,8 @@ exports.cancelAuction = async function(message, args) {
       return
     }
 
+    await utils.unlockAmount(auction.token, auction.seller, auction.tokenAmount)
+
     var deletedAuction = await db.deleteAuction(args[0])
 
     if (deletedAuction) {
@@ -350,6 +360,16 @@ exports.bid = async function(message, args) {
 
     var bidAmount = new BigNumber(args[1])
 
+    if (utils.decimalCount(args[1].toString()) > config.tipMaxDecimals) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `You can only make bids with a maximum of ${config.tipMaxDecimals} decimal places.`}})
+      return false
+    }
+
+    if (utils.decimalCount(args[1].toString()) > 8) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `You are trying to use too many decimals for the ${config.ctick} amount. It can't have any more than 8 decimals.`}})
+      return
+    }
+
     var newBidSats = utils.toSats(bidAmount, 8)
 
     if (newBidSats.isNaN() || !newBidSats.gt(0)) {
@@ -377,29 +397,25 @@ exports.bid = async function(message, args) {
     }
 
     var updatedAuction = await db.bidAuction(args[0], message.author.id, newBidSats)
+    console.log("Auction updated:")
     console.log(updatedAuction)
 
     if (updatedAuction) {
+      // unlock the previous bidder's balance
+      var lastBid = null
+      var sortedBids = auction.bids.sort(bidSort)
+      if (sortedBids) {
+        if (sortedBids[sortedBids.length - 1]) {
+          var lastBid = sortedBids[sortedBids.length - 1]
+          balance = await utils.unlockAmount(config.ctick, lastBid.bidder, lastBid.amount)
+        }
+      }
+
       // lock balance so user can't send the token somewhere else before the auction has ended,
       // or somone has outbid them
       var currentLocked = new BigNumber(balance.lockedAmount)
       var newLocked = currentLocked.plus(newBidSats)
       var updatedBalance = await db.editBalanceLocked(message.author.id, config.ctick, newLocked)
-
-      // unlock the previous bidder's balance
-      var sortedBids = updatedAuction.bids.sort(bidSort)
-      if (sortedBids) {
-        if (sortedBids[sortedBids.length - 1]) {
-          var lastBid = sortedBids[sortedBids.length - 1]
-
-          var lastBidderBal = await db.getBalance(lastBid.bidder, config.ctick)
-          var lastLocked = new BigNumber(lastBidderBal.lockedAmount)
-          var lastBidAmount = new BigNumber(lastBid.amount)
-          var lastNewLocked = lastLocked.minus(lastBidAmount)
-          var updatedLastBal = await db.editBalanceLocked(lastBid.bidder, config.ctick, lastNewLocked)
-        }
-      }
-
       var tokenStr = await utils.getExpLink(auction.token, c.TOKEN)
 
       if (!tokenStr) {
@@ -413,18 +429,27 @@ exports.bid = async function(message, args) {
       var reserve = utils.toWholeUnit(reservePrice, 8)
 
       var reserveMet = CROSS
-      if (newBidSats.gt(reservePrice)) {
+      if (newBidSats.gte(reservePrice)) {
         reserveMet = TICK
       }
 
       var tokenAmount = new BigNumber(auction.tokenAmount)
 
+      var timeLeft = utils.getRemainingTimeStr(auction.endTime)
+
+      var auctionStr = `\nAuction ID: ${auction.auctionID} | ${tokenStr}` +
+                    `\n<@${auction.seller}> auctioning ${utils.toWholeUnit(tokenAmount, token.decimals)} out of max ${token.maxSupply} in existence` +
+                    `\nReserve price: ${reserve} ${config.ctick} | Met? ${reserveMet}` +
+                    `\nEnds in: ${timeLeft}` +
+                    `\nNew highest bid: ${args[1]} ${config.ctick} by <@${message.author.id}>`
+
+      if (lastBid) {
+        let amountWhole = utils.toWholeUnit(new BigNumber(lastBid.amount), 8)
+        auctionStr += `\nPrevious highest bid: ${amountWhole} ${config.ctick} by <@${lastBid.bidder}>`
+      }
+
       message.channel.send({embed: { color: c.SUCCESS_COL,
-        description: `\nAuction ID: ${auction.auctionID}` +
-                      `\n<@${auction.seller}> auctioning ${utils.toWholeUnit(tokenAmount, token.decimals)} ${tokenStr}` +
-                      `\nReserve price: ${reserve} ${config.ctick} | Met? ${reserveMet}` +
-                      `\nAuction end time: ${auction.endTime}` +
-                      `\nNew highest bid: ${args[1]} ${config.ctick} by <@${message.author.id}>`
+        description: auctionStr
       }})
     } else {
       message.channel.send({embed: { color: c.FAIL_COL, description: `Error updating the auction ${auction.auctionID}.`}})
@@ -474,6 +499,8 @@ exports.endAuction = async function(auctionID, client) {
 
     if (!auction) {
       console.log(`Error: cannot find auction ${auctionID} to end it!`)
+      channel.send({embed: { color: c.FAIL_COL, description: `Error finding the auction ${auction.auctionID}.`}})
+      return
     }
 
     var highestBid = getHighestBid(auction.bids)
@@ -485,11 +512,11 @@ exports.endAuction = async function(auctionID, client) {
       reserveMet = TICK
     }
 
-    var spt = await sjs.utils.fetchBackendAsset(config.blockURL, auction.token)
+    var token = await sjs.utils.fetchBackendAsset(config.blockURL, auction.token)
 
     var tokenStr = await utils.getExpLink(auction.token, c.TOKEN)
     var tokenAmount = new BigNumber(auction.tokenAmount)
-    var tokenWhole = utils.toWholeUnit(tokenAmount, spt.decimals)
+    var tokenWhole = utils.toWholeUnit(tokenAmount, token.decimals)
     var bidWhole = utils.toWholeUnit(highestBidAmount, 8)
     var reserveWhole = utils.toWholeUnit(reserve, 8)
 
@@ -505,24 +532,17 @@ exports.endAuction = async function(auctionID, client) {
         winStr = "No winner"
       }
 
-
       if (endedAuction) {
         // unlock the amounts that were locked for the auction
-        let oldBalanceSel = await db.getBalance(auction.seller, auction.token)
-        let oldLockedSel = new BigNumber(oldBalanceSel.lockedAmount)
-        let newLockedSel = oldLockedSel.minus(auction.tokenAmount)
-        let newBalanceSel = await db.editBalanceLocked(auction.seller, auction.token, newLockedSel)
+        await utils.unlockAmount(auction.token, auction.seller, auction.tokenAmount)
 
         if (highestBidAmount.gt(0)) {
-          let oldBalanceBuy = await db.getBalance(highestBid.bidder, config.ctick)
-          let oldLockedBuy = new BigNumber(oldBalanceBuy.lockedAmount)
-          let newLockedBuy = oldLockedBuy.minus(highestBid.amount)
-          let newBalanceBuy = await db.editBalanceLocked(highestBid.bidder, config.ctick, newLockedBuy)
+          await utils.unlockAmount(config.ctick, highestBid.bidder, highestBid.amount)
         }
 
         channel.send({embed: { color: c.FAIL_COL,
-        description: `\nAuction ${auction.auctionID} ended` +
-                      `\n<@${auction.seller}> auctioning ${tokenWhole} ${tokenStr}` +
+        description: `\nAuction ${auction.auctionID} ended | ${tokenStr}` +
+                      `\n<@${auction.seller}> auctioning ${tokenWhole} out of max ${token.maxSupply} in existence` +
                       `\nReserve price: ${reserveWhole} ${config.ctick} | Met? ${reserveMet}` +
                       `\n${bidStr}` +
                       `\n${winStr}`
@@ -563,20 +583,15 @@ exports.endAuction = async function(auctionID, client) {
       var tokenAmount = new BigNumber(auction.tokenAmount)
 
       if (completedAuction) {
-        // unlock the amounts that were locked for the auction
-        let oldBalanceSel = await db.getBalance(auction.seller, auction.token)
-        let oldLockedSel = new BigNumber(oldBalanceSel.lockedAmount)
-        let newLockedSel = oldLockedSel.minus(auction.tokenAmount)
-        let newBalanceSel = await db.editBalanceLocked(auction.seller, auction.token, newLockedSel)
+        // unlock seller amount
+        await utils.unlockAmount(auction.token, auction.seller, auction.tokenAmount)
 
-        let oldBalanceBuy = await db.getBalance(highestBid.bidder, config.ctick)
-        let oldLockedBuy = new BigNumber(oldBalanceBuy.lockedAmount)
-        let newLockedBuy = oldLockedBuy.minus(highestBid.amount)
-        let newBalanceBuy = await db.editBalanceLocked(highestBid.bidder, config.ctick, newLockedBuy)
+        // unlock highest bidder amount
+        await utils.unlockAmount(config.ctick, highestBid.bidder, highestBid.amount)
 
         channel.send({embed: { color: c.SUCCESS_COL,
-        description: `\nAuction ${auction.auctionID} ended!` +
-                      `\n<@${auction.seller}> auctioning ${tokenWhole} ${tokenStr}` +
+        description: `\nAuction ${auction.auctionID} ended! | ${tokenStr}` +
+                      `\n<@${auction.seller}> auctioning ${tokenWhole} out of max ${token.maxSupply} in existence` +
                       `\nReserve price: ${reserveWhole} ${config.ctick} | Met? ${reserveMet}` +
                       `\n:tada: <@${completedAuction.winner}> has won with a bid of ${bidWhole} ${config.ctick}! :tada:` +
                       `\nCongratulations!`
@@ -618,16 +633,17 @@ async function printAuction(auction, message, client) {
       reserveMet = TICK
     }
 
-    var spt = await sjs.utils.fetchBackendAsset(config.blockURL, auction.token)
+    var token = await sjs.utils.fetchBackendAsset(config.blockURL, auction.token)
 
     var tokenStr = await utils.getExpLink(auction.token, c.TOKEN)
     var tokenAmount = new BigNumber(auction.tokenAmount)
-    var tokenWhole = utils.toWholeUnit(tokenAmount, spt.decimals)
+    var tokenWhole = utils.toWholeUnit(tokenAmount, token.decimals)
     var bidWhole = utils.toWholeUnit(highestBidAmount, 8)
     var reserveWhole = utils.toWholeUnit(reserve, 8)
 
     var seller = (await client.users.fetch(auction.seller)).username
-    var endStr = `Auction end time: ${auction.endTime}`
+    var timeLeft = utils.getRemainingTimeStr(auction.endTime)
+    var endStr = `Ends in: ${timeLeft}`
     var winStr = `No winner`
     var auctioningStr = `is auctioning`
     var now = Date.now()
@@ -648,8 +664,8 @@ async function printAuction(auction, message, client) {
     }
 
     message.channel.send({embed: { color: c.SUCCESS_COL,
-      description: `\nAuction ID: ${auction.auctionID}` +
-                    `\n${seller} ${auctioningStr} ${auction.tokenAmount} ${tokenStr}` +
+      description: `\nAuction ID: ${auction.auctionID} | ${tokenStr}` +
+                    `\n${seller} ${auctioningStr} ${auction.tokenAmount} out of max ${token.maxSupply} in existence` +
                     `\nReserve price: ${reserveWhole} ${config.ctick} | Met? ${reserveMet}` +
                     `\n${endStr}` +
                     `\n${winStr}`

@@ -19,6 +19,6 @@
   "tradeTime" : 5,
   "maxAuctionTimeDays" : 5,
   "recentTrades" : 5,
-  "blockURL" : "https://sys-explorer.tk",
-  "mnemonic" : "toss club toe shoe turtle dog handle chair cat beat disinterest insane elevator beauty movie"
+  "blockURL" : "",
+  "mnemonic" : ""
 }

@@ -6,6 +6,8 @@ const BigNumber = require('bignumber.js')
 BigNumber.config({ DECIMAL_PLACES: 8 })
 BigNumber.config({ EXPONENTIAL_AT: 1e+9 })
 
+const config = require('./config.json')
+
 // import mongoose models
 var Auction = require('./models/auction.js')
 var Bid = require('./models/bid.js')
@@ -19,7 +21,12 @@ var Trade = require('./models/trade.js');
 
 exports.connect = function() {
   try {
-    mongoose.connect('mongodb://localhost/test',
+    var dbStr = "sys-main"
+    if (config.testnet) {
+      dbStr = "test"
+    }
+
+    mongoose.connect(`mongodb://localhost/${dbStr}`,
         {
           useNewUrlParser: true,
           useUnifiedTopology: true,
@@ -257,7 +264,6 @@ exports.checkProfileInMission = async function(discordID, missionID) {
   try {
     var mission = await Mission.findOne({ missionID: missionID })
                         .populate({ path: 'profiles', model: Profile });
-    console.log(mission)
 
     for (var i = 0; i < mission.profiles.length; i++) {
       if (mission.profiles[i].userID === discordID) {
@@ -570,7 +576,7 @@ exports.bidAuction = async function(id, bidder, bidAmount) {
 
   try {
     return Auction.findOneAndUpdate({ auctionID : id },
-      { $push: { bids : bid }})
+      { $push: { bids : bid }}, { new: true })
       .populate({ path: 'bids', model: Bid })
   } catch (error) {
     console.log(error)
