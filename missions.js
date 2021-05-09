@@ -328,7 +328,7 @@ exports.payMission = async function(args, message, client) {
       (tipPerParticipant.isNaN()) ||
       (tipPerParticipant.lte(0))
     ) {
-      msg.reply("The amount that each winner will win is below the lower threshold for this asset.");
+      msg.reply("The amount that each participant will receive is below the threshold for this asset.");
       return;
     }
     let tipPerParticipantWhole = utils.toWholeUnit(tipPerParticipant, tipAsset.decimals)
@@ -342,7 +342,7 @@ exports.payMission = async function(args, message, client) {
       if (tipSuccess) {
         targets.push(missionProfiles[i].userID)
         txtUsers += "<@" + missionProfiles[i].userID + "> "
-        totalTip = totalTip.plus(tip)
+        totalTip = totalTip.plus(tipPerParticipant)
       }
     }
 
@@ -365,7 +365,7 @@ exports.payMission = async function(args, message, client) {
       arr.forEach(user => {
         line = line + user + "\n "
       })
-      message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipantWhole.toString() + " " + tipAsset.currencyStr + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + tipAsset.currencyStr + ") in mission **" + missionName + "** listed below:" + line } })
+      message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipant.toString() + " " + tipAsset.currencyStr + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + tipAsset.currencyStr + ") in mission **" + missionName + "** listed below:" + line } })
     })
 
     exports.archiveMission(args, message, client)
