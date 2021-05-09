@@ -383,15 +383,19 @@ switch (command) {
                let log = await db.createLog(message.author.id, actionStr, [], 0)
 
                let profileBals = await db.getBalances(message.author.id)
+               let sysBal = await db.getBalance(message.author.id, "SYS")
                // create the balance string showing all sys and token balances
                // stored in profile
                var token
-               let balString = ""
+               let balString = `SYS: ${utils.toWholeUnit(new BigNumber(sysBal.amount), 8).toString()}\n`
                for (let i = 0; i < profileBals.length; i++) {
                  let cc = profileBals[i]
-                 for (let key in cc) {
-                   if (key === "currencyID") {
-                     if (cc[key] !== "SYS") {
+                 if (cc['amount'] === "0") {
+                   continue
+                 }
+                 if (cc['currencyID'] !== "SYS") {
+                   for (let key in cc) {
+                     if (key === "currencyID") {
                        token = await utils.getSPT(cc[key])
 
                        if (!token) {
@@ -403,11 +407,8 @@ switch (command) {
                        let currencyStr = await utils.getExpLink(token.assetGuid, c.TOKEN, tokenStr)
 
                        balString += currencyStr
-                     } else {
-                       balString += (cc[key]).toUpperCase()
+                       balString += ": "
                      }
-                     balString += ": "
-                   } else {
                      if (key === "amount") {
                        if (token != undefined) {
                          balString += utils.toWholeUnit(new BigNumber(cc[key]), token.decimals).toString()
