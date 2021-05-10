@@ -309,7 +309,10 @@ exports.payMission = async function(args, message, client) {
     }
 
     var missionProfiles = await db.getMissionProfiles(missionName);
-
+    var authorAlsoInpayouts = missionProfiles.indexOf(message.author.id);
+    if (authorAlsoInpayouts !== -1) {
+      array.splice(authorAlsoInpayouts, 1);
+    }
     console.log(missionProfiles);
 
     let targets = [];
@@ -327,20 +330,20 @@ exports.payMission = async function(args, message, client) {
     if (tipPerParticipant.isNaN() ||
       tipPerParticipant.lte(0)
     ) {
-      msg.reply("The amount that each participant will receive is below the threshold for this asset.");
+      message.channel.send({ embed: { color: c.FAIL_COL, description: "The amount that each participant will receive is below the threshold for this asset." } });
       return;
     } 
       
     let tipPerParticipantWhole = utils.toWholeUnit(tipPerParticipant, tipAsset.decimals);
     //last check making sure payout does not exceed mission reward
     if (new BigNumber(tipPerParticipantWhole.times(missionProfiles.length)).gt(utils.toWholeUnit(missionReward, tipAsset.decimals))) {
-      msg.reply("Error: Something went wrong with calculating divided payout.");
+      message.channel.send({ embed: { color: c.FAIL_COL, description: "Error: Something went wrong with calculating divided payout." } });
       return;
     }
     var totalTip = new BigNumber(0);
+    var tipInfo = [1, tipPerParticipantWhole, tipAsset];
     for (var i = 0; i < missionProfiles.length; i++) {
       console.log(missionProfiles[i].userID);
-      var tipInfo = [1, tipPerParticipantWhole, tipAsset];
       tipSuccess = await tips.tipUser(tipInfo, myProfile, missionProfiles[i], c.MISSION, client, message);
 
       if (tipSuccess) {
@@ -356,7 +359,7 @@ exports.payMission = async function(args, message, client) {
       } else {
         tipInfo[2] = tipInfo[2].toUpperCase();
       }
-      var actionStr = `Pay ${missionName}: ${tipInfo[1]} ${tipInfo[2].currencyStr} | Total: ${totalTip.toString()}`;
+      var actionStr = `Paid ${missionName}: ${tipInfo[1]} ${tipInfo[2].currencyStr} per user | Total paid: ${totalTip.toString()}`;
       let log = await db.createLog(message.author.id, actionStr, targets, totalTip.toString());
     }
 
@@ -369,7 +372,8 @@ exports.payMission = async function(args, message, client) {
       arr.forEach(user => {
         line = line + user + "\n ";
       });
-      message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipant.toString() + " " + tipAsset.currencyStr + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + tipAsset.currencyStr + ") in mission **" + missionName + "** listed below:" + line } });
+      var payoutChannel = client.channels.cache.get(config.missionPayOutsChannel);
+      payoutChannel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipant.toString() + " " + tipAsset.currencyStr + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + tipAsset.currencyStr + ") in mission **" + missionName + "** listed below:" + line } });
     })
 
     exports.archiveMission(args, message, client);
