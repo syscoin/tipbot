@@ -220,7 +220,7 @@ exports.deleteMsgAfterDelay = function(msg, tOut) {
 }
 
 exports.isSuccessMsgReact = function(isSent, message) {
-  if (message !== undefined) {
+  if (message && message !== undefined) {
     if (isSent) {
       message.react(SUCCESS_EMOJI)
     } else {

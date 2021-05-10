@@ -2,6 +2,7 @@ var exports = module.exports = {};
 
 const qr = require('qrcode')
 const fs = require('fs-extra')
+const sharp = require('sharp')
 
 const db = require('./db.js')
 
@@ -16,27 +17,43 @@ async function checkQRDir() {
 
 checkQRDir()
 
+async function addLogo(pathToFile, pathToLogoQR) {
+  try {
+    var image = await sharp(pathToFile)
+      .composite([{ input: './qr/syscoin.png', blend: 'atop'}])
+    await image.toFile(pathToLogoQR)
+    fs.remove(pathToFile)
+    return pathToLogoQR
+  } catch (error) {
+    console.log("Error adding logo to QR")
+    console.log(error)
+    return null
+  }
+}
+
 exports.getQR = async function(userID) {
-  var profile = await db.getProfile(userID)
+  try {
+    var profile = await db.getProfile(userID)
+  } catch (error) {
+    console.log(error)
+    return
+  }
 
-  var pathToFile = `./qr/${userID}.png`
-  var pathExists = await fs.pathExists(pathToFile)
+  var pathToFile = `./qr/${userID}qr.png`
+  var pathToLogoQR = `./qr/${userID}.png`
 
-  if (pathExists) {
-    return pathToFile
-  } else {
-    await qr.toFile(`./qr/${userID}.png`, profile.address, {
+  var qrFile
+  try {
+    qrFile = await qr.toFile(pathToFile, profile.address, {
       color: {
-        dark: "#000A63",
+        dark: "#000000",
         light: "#ffffff"
       }
-    }, function (err) {
-      if (err) {
-        console.log(err)
-        return null
-      }
     })
-
-    return pathToFile
+  } catch (error) {
+    console.log(error)
+    return null
   }
+
+  return addLogo(pathToFile, pathToLogoQR)
 }

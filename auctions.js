@@ -493,7 +493,6 @@ exports.getEndingSoon = async function getEndingSoon(limit) {
 exports.endAuction = async function(auctionID, client) {
   try {
     var channel = client.channels.cache.get(config.auctionChannel)
-    var message = Array.from(await channel.messages.fetch({limit: 1}))[0][1]
 
     var auction = await db.getAuction(auctionID)
 
@@ -559,14 +558,14 @@ exports.endAuction = async function(auctionID, client) {
     var sellerProf = await db.getProfile(auction.seller)
     var buyerProf = await db.getProfile(highestBid.bidder)
 
-    let tipAtoB = await tips.tipUser(tipInfo1, sellerProf, buyerProf, c.AUCTION, client, message)
+    let tipAtoB = await tips.tipUser(tipInfo1, sellerProf, buyerProf, c.AUCTION, client, null)
 
     if (tipAtoB) {
-      let tipBtoA = await tips.tipUser(tipInfo2, buyerProf, sellerProf, c.AUCTION, client, message)
+      let tipBtoA = await tips.tipUser(tipInfo2, buyerProf, sellerProf, c.AUCTION, client, null)
 
       if (!tipBtoA) {
         // if B to A fails, send user A back their cryptos
-        let revertAtoB = await tips.tipUser(tipInfo1, buyerProf, sellerProf, c.GENERAL, client, message)
+        let revertAtoB = await tips.tipUser(tipInfo1, buyerProf, sellerProf, c.GENERAL, client, null)
         channel.send({embed: { color: c.FAIL_COL, description: `Auction exchange failed. Reverting...`}})
 
         if (!revertAtoB) {
