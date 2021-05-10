@@ -332,8 +332,8 @@ exports.getSPTByGUID = function (GUID) {
   try {
     return SPT.findOne({ guid: GUID });
   } catch (error) {
-    console.log(error)
-    return null
+    console.log(error);
+    return null;
   }
 }
 

@@ -74,14 +74,14 @@ exports.getSPT = async function getSPT(tokenStr) {
 // tries to find an SPT in the db by GUID and then on the blockchain
 exports.getSPTByGUID = async function getSPTByGUID(tokenGUID) {
   try {
-    var userSPT = await db.getSPTByGUID(tokenGUID)
+    var userSPT = await db.getSPTByGUID(tokenGUID);
     if (!userSPT) {
-      userSPT = sjs.utils.fetchBackendAsset(backendURL, userSPT.guid)
+      userSPT = sjs.utils.fetchBackendAsset(backendURL, userSPT.guid);
     }
     return userSPT;
   } catch (error) {
-    console.log(error)
-    return error
+    console.log(error);
+    return error;
   }
 }
 exports.getDecimals = async function(tokenStr) {
