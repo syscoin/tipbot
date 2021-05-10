@@ -301,9 +301,9 @@ exports.payMission = async function(args, message, client) {
 
     var myProfile = await db.getProfile(message.author.id)
     var myBalance = await db.getBalance(message.author.id, mission.currencyID)
-
+    var missionReward = new BigNumber(mission.reward)
     // make sure mission payer has the funds to pay all the users
-    if (utils.hasEnoughBalance(myBalance, mission.reward)) {
+    if (utils.hasEnoughBalance(myBalance, missionReward)) {
       message.channel.send({ embed: { color: c.FAIL_COL, description: "Sorry, you don't have enough funds to pay the mission!" } });
       return;
     }
@@ -321,18 +321,22 @@ exports.payMission = async function(args, message, client) {
     } else {
       tipAsset = mission.currencyID
     }
-    var dividedReward = new BigNumber(mission.reward / missionProfiles.length)
+    var dividedReward = new BigNumber(missionReward / missionProfiles.length)
     let tipPerParticipant = dividedReward.decimalPlaces(tipAsset.decimals, 1)
     //Verify the validity of the payout argument.
-    if (
-      (tipPerParticipant.isNaN()) ||
-      (tipPerParticipant.lte(0))
+    if (tipPerParticipant.isNaN() ||
+      tipPerParticipant.lte(0)
     ) {
       msg.reply("The amount that each participant will receive is below the threshold for this asset.");
       return;
-    }
+    } 
+      
     let tipPerParticipantWhole = utils.toWholeUnit(tipPerParticipant, tipAsset.decimals)
-    
+    //last check making sure payout does not exceed mission reward
+    if (new BigNumber(tipPerParticipantWhole * missionProfiles.length).gt(utils.toWholeUnit(missionReward, tipAsset.decimals))) {
+      msg.reply("Error: Something went wrong with calculating divided payout.");
+      return;
+    }
     var totalTip = new BigNumber(0)
     for (var i = 0; i < missionProfiles.length; i++) {
       console.log(missionProfiles[i].userID)
