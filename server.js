@@ -565,6 +565,7 @@ switch (command) {
     break
 
   case "pay":
+  case "paymission":
     // pay mission
     if (message.channel.id == config.missionChannel) {
       missions.payMission(args, message, client)
