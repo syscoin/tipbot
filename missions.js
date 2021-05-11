@@ -25,7 +25,6 @@ function arraySplit(list, howMany) {
 
 exports.createMission = async function(args, message, client) {
   try {
-    console.log(utils.checkAdminRole(message))
     if (!utils.checkAdminRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
@@ -56,6 +55,7 @@ exports.createMission = async function(args, message, client) {
         currencyStr = "SYS";
       }
     } else {
+      decimals = 8;
       gCurrency = "SYS";
       currencyStr = "SYS";
     }
@@ -87,6 +87,26 @@ exports.createMission = async function(args, message, client) {
 
     if (payoutBig.isNaN() || payoutBig.lte(0)) {
       message.channel.send({ embed: { color: c.FAIL_COL, description: `Your mission payout is not a number or is less than 0, try again i.e. ${prefix}createmission m75 10 SYS`}});
+      return;
+    }
+
+    var decimalCount = utils.decimalCount(payoutBig.toString())
+
+    if (decimalCount > decimals) {
+      if (decimals > 0) {
+        if (decimals > config.tipMaxDecimals) {
+          message.channel.send({ embed: { color: c.FAIL_COL, description: `You are trying to use too many decimals for the payout amount. We don't want it dusty in here so the current max tipbot decimal count is ${config.tipMaxDecimals}.`}});
+        } else {
+          message.channel.send({embed: { color: c.FAIL_COL, description: `You are trying to use too many decimals payout amount. It can't have any more than ${decimals} decimals.`}})
+        }
+      } else {
+        message.channel.send({embed: { color: c.FAIL_COL, description: `${currencyStr} is a non-divisible token. It can't have any decimals.`}})
+      }
+      return
+    }
+
+    if (decimalCount > config.tipMaxDecimals) {
+      message.channel.send({ embed: { color: c.FAIL_COL, description: `You are trying to use too many decimals for the payout amount. We don't want it dusty in here so the current max tipbot decimal count is ${config.tipMaxDecimals}.`}});
       return;
     }
 
@@ -150,7 +170,7 @@ exports.removeFromMission = async function(args, message, client) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
-    
+
     var missionName = args[0];
     var user = args[1];
 
@@ -287,12 +307,12 @@ exports.payMission = async function(args, message, client) {
       return;
     }
 
+    var missionName = args[0].toUpperCase();
     if (missionName == undefined) {
       message.channel.send({ embed: { color: c.FAIL_COL, description: `Please use this format to pay mission: ${prefix}pay m10` } });
       return;
     }
 
-    var missionName = args[0].toUpperCase();
     var mission = await db.getMission(missionName);
     if (!mission || !mission.active) {
       message.channel.send({ embed: { color: c.FAIL_COL, description: "Sorry, that mission does not exist or has been archived." } });
@@ -301,49 +321,73 @@ exports.payMission = async function(args, message, client) {
 
     var myProfile = await db.getProfile(message.author.id);
     var myBalance = await db.getBalance(message.author.id, mission.currencyID);
-    var missionReward = new BigNumber(mission.reward);
     // make sure mission payer has the funds to pay all the users
-    if (utils.hasEnoughBalance(myBalance, missionReward)) {
+    if (!utils.hasEnoughBalance(myBalance, mission.reward)) {
       message.channel.send({ embed: { color: c.FAIL_COL, description: "Sorry, you don't have enough funds to pay the mission!" } });
       return;
     }
 
+    // remove mission creator if they're in there
+    var missionReward = new BigNumber(mission.reward)
     var missionProfiles = await db.getMissionProfiles(missionName);
-    var authorAlsoInpayouts = missionProfiles.indexOf(message.author.id);
-    if (authorAlsoInpayouts !== -1) {
-      array.splice(authorAlsoInpayouts, 1);
+    for (var i = 0; i < missionProfiles.length; i++) {
+      if (missionProfiles[i].userID === message.author.id) {
+        missionProfiles.splice(i, 1)
+        break
+      }
     }
-    console.log(missionProfiles);
 
-    let targets = [];
-    let tipSuccess;
     var txtUsers = "";
-    var tipAsset;
+    var token, decimals, currencyStr, tipStr;
     if (mission.currencyID !== "SYS") {
-      tipAsset = await db.getSPTByGUID(mission.currencyID);
+      try {
+        token = await utils.getSPT(mission.currencyID);
+        tipStr = token.assetGuid
+        currencyStr = await utils.getExpLink(mission.currencyID, c.TOKEN);
+      } catch (error) {
+        console.log(`Error finding currency ${mission.currencyID}`)
+        message.channel.send({ embed: { color: c.FAIL_COL, description: "Error finding the currency for the mission payout." } });
+        return;
+      }
+
+      decimals = token.decimals;
     } else {
-      tipAsset = mission.currencyID;
+      tipStr = config.ctick
+      currencyStr = config.ctick;
+      decimals = 8;
     }
-    var dividedReward = new BigNumber(missionReward / missionProfiles.length);
-    let tipPerParticipant = dividedReward.decimalPlaces(tipAsset.decimals, 1);
+    var dividedReward = missionReward.dividedBy(missionProfiles.length);
+
+    // make sure reward can't have more decimals than is possible or allowed
+    var dividedRewardWhole = utils.toWholeUnit(dividedReward, decimals);
+    var decimalCount = utils.decimalCount(dividedRewardWhole.toString())
+    if (decimalCount > decimals) {
+      dividedRewardWhole.toFixed(decimals)
+    }
+    if (decimalCount > config.tipMaxDecimals) {
+      dividedRewardWhole.toFixed(config.tipMaxDecimals)
+    }
+
+    if (dividedRewardWhole.lt(config.tipMin)) {
+      message.channel.send({ embed: { color: c.FAIL_COL, description: "The mission payout per participant is below the minimum tip amount on the tipbot." } });
+      return;
+    }
+    var tipPerParticipant = new BigNumber(utils.toSats(dividedRewardWhole, decimals));
+
     //Verify the validity of the payout argument.
     if (tipPerParticipant.isNaN() ||
       tipPerParticipant.lte(0)
     ) {
       message.channel.send({ embed: { color: c.FAIL_COL, description: "The amount that each participant will receive is below the threshold for this asset." } });
       return;
-    } 
-      
-    let tipPerParticipantWhole = utils.toWholeUnit(tipPerParticipant, tipAsset.decimals);
-    //last check making sure payout does not exceed mission reward
-    if (new BigNumber(tipPerParticipantWhole.times(missionProfiles.length)).gt(utils.toWholeUnit(missionReward, tipAsset.decimals))) {
-      message.channel.send({ embed: { color: c.FAIL_COL, description: "Error: Something went wrong with calculating divided payout." } });
-      return;
     }
+
+    let tipSuccess;
+    let tipPerParticipantWhole = utils.toWholeUnit(tipPerParticipant, decimals);
     var totalTip = new BigNumber(0);
-    var tipInfo = [1, tipPerParticipantWhole, tipAsset];
+    let targets = [];
+    var tipInfo = [1, tipPerParticipantWhole, tipStr];
     for (var i = 0; i < missionProfiles.length; i++) {
-      console.log(missionProfiles[i].userID);
       tipSuccess = await tips.tipUser(tipInfo, myProfile, missionProfiles[i], c.MISSION, client, message);
 
       if (tipSuccess) {
@@ -352,6 +396,7 @@ exports.payMission = async function(args, message, client) {
         totalTip = totalTip.plus(tipPerParticipant);
       }
     }
+    var totalTipWhole = utils.toWholeUnit(totalTip, decimals)
 
     if (targets.length > 0) {
       if (tipInfo[2] == undefined) {
@@ -359,10 +404,9 @@ exports.payMission = async function(args, message, client) {
       } else {
         tipInfo[2] = tipInfo[2].toUpperCase();
       }
-      var actionStr = `Paid ${missionName}: ${tipInfo[1]} ${tipInfo[2].currencyStr} per user | Total paid: ${totalTip.toString()}`;
+      var actionStr = `Paid ${missionName}: ${tipInfo[1]} ${currencyStr} per user | Total paid: ${totalTip.toString()}`;
       let log = await db.createLog(message.author.id, actionStr, targets, totalTip.toString());
     }
-
 
     //split into groups of 50 users for discord limit
     var users = txtUsers.split(' ');
@@ -373,7 +417,7 @@ exports.payMission = async function(args, message, client) {
         line = line + user + "\n ";
       });
       var payoutChannel = client.channels.cache.get(config.missionPayOutsChannel);
-      payoutChannel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipant.toString() + " " + tipAsset.currencyStr + "** to " + targets.length + " users (Total = " + totalTip.toString() + " " + tipAsset.currencyStr + ") in mission **" + missionName + "** listed below:" + line } });
+      payoutChannel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipantWhole.toString() + " " + currencyStr + "** to " + targets.length + " users (Total = " + totalTipWhole.toString() + " " + currencyStr + ") in mission **" + missionName + "** listed below:" + line } });
     })
 
     exports.archiveMission(args, message, client);
