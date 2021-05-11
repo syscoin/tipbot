@@ -304,7 +304,8 @@ exports.archiveMission = function(id) {
   }
 }
 
-// adds a new "verified" SPT to the db
+// adds a new "verified" SPT to the db, this links to the guid
+// for using with the fetchBackednAsset function
 exports.createSPT = function(symbol, guid) {
   try {
     return SPT.create({
@@ -324,16 +325,6 @@ exports.getSPT = function (ticker) {
   } catch (error) {
     console.log(error)
     return null
-  }
-}
-
-// finds a SPT with the given GUID
-exports.getSPTByGUID = function (GUID) {
-  try {
-    return SPT.findOne({ guid: GUID });
-  } catch (error) {
-    console.log(error);
-    return null;
   }
 }
 
