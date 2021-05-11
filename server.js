@@ -146,23 +146,32 @@ client.on('message', async message => {
 
      // if a user posts in the mission channel with an active mission name
      // add them to the mission
-     if (message.channel.id == config.missionChannel) {
+     if (message.channel.id == config.missionReportsChannel) {
        try {
-         var missionName = message.content.split(" ", 1)
+         var missionName = message.content.trim().split(/\s+/)
          missionName[0] = missionName[0].toUpperCase()
          var mission = await db.getMission(missionName[0])
          if (mission) {
            if (mission.active) {
-             let missionUpdated = await db.addProfileToMission(message.author.id, missionName[0])
+             try {
+               let missionUpdated = await db.addProfileToMission(message.author.id, missionName[0])
+               utils.isSuccessMsgReact(true, message)
+             } catch (error) {
+               utils.isSuccessMsgReact(false, message)
+               console.log(`Error adding ${message.author.id} to mission ${missionName}`)
+               console.log(error)
+             }
            } else {
+             utils.isSuccessMsgReact(false, message)
              message.channel.send({embed: { color: c.FAIL_COL, description: `Mission ${missionName[0]} is no longer active.`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
            }
          } else {
            console.log(`Mission ${missionName} not found`)
          }
        } catch (error) {
+         utils.isSuccessMsgReact(false, message)
          console.log(error)
-         message.channel.send({embed: { color: c.FAIL_COL, description: "Error adding to mission."}})
+         message.channel.send({embed: { color: c.FAIL_COL, description: "Error adding to mission."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
        }
      }
 
@@ -503,6 +512,7 @@ switch (command) {
     }
    break
 
+  case "create":
   case "createmission":
      // create mission
      if (message.channel.id == config.missionChannel) {
@@ -541,7 +551,11 @@ switch (command) {
   case "list":
     // show all profiles added to a mission
     if (message.channel.id == config.missionChannel) {
-      missions.listMissionProfiles(args, message, client)
+      if (args.length > 0) {
+        missions.listMissionProfiles(args, message, client)
+      } else {
+        missions.listMissions(args, message, client)
+      }
     }
 
     // retrieves and prints a list of the auctions that will be ending soon
@@ -550,7 +564,7 @@ switch (command) {
     }
     break
 
-  case "paymission":
+  case "pay":
     // pay mission
     if (message.channel.id == config.missionChannel) {
       missions.payMission(args, message, client)
