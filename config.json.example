@@ -10,6 +10,7 @@
   "discordServer": "",
   "missionChannel": "",
   "missionPayOutsChannel": "",
+  "missionReportsChannel",
   "giveawayChannel": "",
   "tradeChannel": "",
   "auctionChannel": "",
