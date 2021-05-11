@@ -140,6 +140,7 @@ exports.fromMilliToMins = function(timeIn) {
   return timeOb
 }
 
+// expects a db Balance, and a number/string amount
 exports.hasEnoughBalance = function(balance, amount) {
   if (!balance) {
     return false
@@ -148,6 +149,8 @@ exports.hasEnoughBalance = function(balance, amount) {
   var amountToSend = new BigNumber(amount)
   var balanceAmount = new BigNumber(balance.amount)
   var availableAmount = balanceAmount.minus(balance.lockedAmount)
+  console.log(availableAmount.toString())
+  console.log(amountToSend.toString())
 
   if (availableAmount.lt(amountToSend)) {
     return false

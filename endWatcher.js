@@ -12,6 +12,7 @@ var exports = module.exports = function(client) {
 
   const auctionsJS = require('./auctions.js')
   const tradesJS = require('./trades.js')
+  const missionsJS = require('./missions.js')
   const utils = require('./utils.js')
   const config = require('./config.json')
 
@@ -24,7 +25,6 @@ var exports = module.exports = function(client) {
   async function checkAndEndAuction(auctionID) {
     try {
       var now = Date.now()
-
       var auction = await db.getAuction(auctionID)
 
       if (auction) {
@@ -41,7 +41,6 @@ var exports = module.exports = function(client) {
   async function checkAndEndTrade(tradeID) {
     try {
       var now = Date.now()
-
       var trade = await db.getTrade(tradeID)
 
       if (trade) {
@@ -59,10 +58,32 @@ var exports = module.exports = function(client) {
     }
   }
 
+  async function checkAndEndMission(missionID) {
+    try {
+      var now = Date.now()
 
-  // checks for auctions/trades ending within a certain time and for those that will it
+      var mission = await db.getMission(missionID)
+
+      if (mission) {
+        if (now >= mission.endTime.getTime()) {
+          var channel = client.channels.cache.get(config.missionPayOutsChannel)
+          var message = Array.from(await channel.messages.fetch({limit: 1}))[0][1]
+
+          console.log("paying mission " + missionID)
+          missionsJS.payMission([mission.missionID], message, client, true)
+          clearInterval(intervals[missionID])
+        }
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+
+
+  // checks for auctions/trades/missions ending within a certain time and for those that will it
   // then adds a higher frequency interval to ensure they end at the right time
-  async function checkAuctionsAndTrades() {
+  async function checkEnding() {
     try {
       // ending within 2 minutes
       var endingAuctions = await auctionsJS.getEndingSoon(120)
@@ -88,11 +109,23 @@ var exports = module.exports = function(client) {
           }
         }
       }
+
+      var endingMissions = await missionsJS.getEndingSoon(120)
+
+      if (endingMissions) {
+        for (var i = 0; i < endingMissions.length; i++) {
+          var interval = intervals[endingMissions[i].missionID]
+
+          if (interval == undefined) {
+            intervals[endingMissions[i].missionID] = setInterval(checkAndEndMission, 5000, endingMissions[i].missionID)
+          }
+        }
+      }
     } catch (error) {
       console.log(error)
     }
   }
 
   // check every 90 secs
-  setInterval(checkAuctionsAndTrades, 10000)
+  setInterval(checkEnding, 10000)
 }

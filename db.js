@@ -179,13 +179,16 @@ exports.getBalances = function(discordID) {
 }
 
 // creates a new mission in the db
-exports.createMission = function(id, payout) {
+exports.createMission = function(id, creator, payout, currency, endDate) {
   try {
     return Mission.create({
       missionID: id,
+      creator: creator,
       reward: payout.toString(),
+      currencyID: currency.toString(),
       profiles: new Array(),
       dateCreated: new Date(),
+      endTime: endDate,
       active: true
     });
   } catch (error) {
@@ -303,7 +306,8 @@ exports.archiveMission = function(id) {
   }
 }
 
-// adds a new "verified" SPT to the db
+// adds a new "verified" SPT to the db, this links to the guid
+// for using with the fetchBackednAsset function
 exports.createSPT = function(symbol, guid) {
   try {
     return SPT.create({
@@ -317,7 +321,7 @@ exports.createSPT = function(symbol, guid) {
 }
 
 // finds a SPT with the given ticker
-exports.getSPT = function(ticker) {
+exports.getSPT = function (ticker) {
   try {
     return SPT.findOne({ symbol: ticker });
   } catch (error) {
