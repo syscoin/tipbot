@@ -179,14 +179,16 @@ exports.getBalances = function(discordID) {
 }
 
 // creates a new mission in the db
-exports.createMission = function(id, payout, currency) {
+exports.createMission = function(id, creator, payout, currency, endDate) {
   try {
     return Mission.create({
       missionID: id,
+      creator: creator,
       reward: payout.toString(),
       currencyID: currency.toString(),
       profiles: new Array(),
       dateCreated: new Date(),
+      endTime: endDate,
       active: true
     });
   } catch (error) {
