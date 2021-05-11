@@ -301,13 +301,33 @@ exports.listMissionProfiles = async function(args, message, client) {
       return;
     }
 
+    var token, decimals, currencyStr;
+    if (mission.currencyID !== "SYS") {
+      try {
+        token = await utils.getSPT(mission.currencyID);
+        currencyStr = await utils.getExpLink(mission.currencyID, c.TOKEN);
+      } catch (error) {
+        console.log(`Error finding currency ${mission.currencyID}`)
+        message.channel.send({ embed: { color: c.FAIL_COL, description: "Error finding the currency for the mission payout." } });
+        return;
+      }
+
+      decimals = token.decimals;
+    } else {
+      currencyStr = config.ctick;
+      decimals = 8;
+    }
+
+    var payout = new BigNumber(mission.reward)
+    var payoutWhole = utils.toWholeUnit(payout, decimals)
+
     var missionProfiles = await db.getMissionProfiles(missionName);
     var txtUsers = "";
     missionProfiles.forEach(profile => {
       txtUsers = txtUsers + "<@" + profile.userID + "> ";
     })
     var remainingTime = utils.getRemainingTimeStr(mission.endTime)
-    message.channel.send({ embed: { color: c.SUCCESS_COL, description: `:fireworks: Ending in: ${remainingTime}\nTotal of ** ${missionProfiles.length} ** users in mission ** ${missionName} ** listed below: ` } });
+    message.channel.send({ embed: { color: c.SUCCESS_COL, title: `${mission.missionID}`, description: `Ending in: ${remainingTime}\nTotal payout: ${payoutWhole} ${currencyStr}\n** ${missionProfiles.length} ** users in mission ** ${missionName} ** listed below: ` } });
 
     if (missionProfiles.length > 0) {
       //split into groups of 50 users for discord limit
