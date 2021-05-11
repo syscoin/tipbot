@@ -306,7 +306,8 @@ exports.listMissionProfiles = async function(args, message, client) {
     missionProfiles.forEach(profile => {
       txtUsers = txtUsers + "<@" + profile.userID + "> ";
     })
-    message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: Total of **" + missionProfiles.length + "** users in mission **" + missionName + "** listed below: " } });
+    var remainingTime = utils.getRemainingTimeStr(mission.endTime)
+    message.channel.send({ embed: { color: c.SUCCESS_COL, description: `:fireworks: Ending in: ${remainingTime}\nTotal of ** ${missionProfiles.length} ** users in mission ** ${missionName} ** listed below: ` } });
 
     if (missionProfiles.length > 0) {
       //split into groups of 50 users for discord limit
