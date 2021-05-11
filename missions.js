@@ -85,9 +85,31 @@ exports.createMission = async function(args, message, client) {
 
     let payoutBig = new BigNumber(payout);
 
-    if (payoutBig.isNaN() || payoutBig.lte(0)) {
-      message.channel.send({ embed: { color: c.FAIL_COL, description: `Your mission payout is not a number or is less than 0, try again i.e. ${prefix}createmission m75 10 SYS`}});
-      return;
+    var time = {
+        amount: new BigNumber(parseInt(args[3].substr(0, args[3].length - 1))),
+        unit: args[3].substr(args[3].length - 1, args[3].length).toUpperCase()
+    }
+
+    var timeMilliSeconds = utils.convertToMillisecs(time.amount, time.unit)
+
+    var amountStr = ["payout", "time amount"]
+    var amounts = [payoutBig, timeMilliSeconds]
+
+    for (var i = 0; i < amounts.length; i++) {
+      if (amounts[i].isNaN()) {
+        message.channel.send({embed: { color: c.FAIL_COL, description: `The ${amountStr[i]} given is not a number.`}})
+        return
+      }
+
+      if (!amounts[i].gt(0)) {
+        message.channel.send({embed: { color: c.FAIL_COL, description: `The ${amountStr[i]} given isn't more than 0.`}})
+        return
+      }
+    }
+
+    if (timeMilliSeconds.gt(utils.convertToMillisecs(config.maxAuctionTimeDays))) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `The max auction time is ${config.maxAuctionTimeDays} day(s). Try again with a lower auction time.`}})
+      return
     }
 
     var decimalCount = utils.decimalCount(payoutBig.toString())
@@ -110,8 +132,11 @@ exports.createMission = async function(args, message, client) {
       return;
     }
 
+    var now = Date.now()
+    var endDate = new Date(timeMilliSeconds.plus(now).toNumber())
+
     let satValue = utils.toSats(payoutBig, decimals);
-    var missionNew = await db.createMission(missionName, satValue.toString(), gCurrency);
+    var missionNew = await db.createMission(missionName, message.author.id, satValue.toString(), gCurrency, endDate);
     if (missionNew) {
       message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: Created a new mission named: **" + missionName + "**" } });
     } else {
@@ -131,12 +156,13 @@ exports.listMissions = async function(args, message, client) {
     }
 
     let activeMissions = await db.getAllActiveMissions();
-    var txtList = "|";
+    var txtList = "";
     for (i = 0; i < activeMissions.length; i++) {
-      txtList += " " + activeMissions[i].missionID + " |";
+      var remainingTime = utils.getRemainingTimeStr(activeMissions[i].endTime)
+      txtList += ` ${activeMissions[i].missionID}: ends in ${remainingTime}\n`;
     }
 
-    message.channel.send({ embed: { color: c.SUCCESS_COL, description: "Here are the active mission names: \n" + txtList } });
+    message.channel.send({ embed: { color: c.SUCCESS_COL, description: "Here are the active missions: \n" + txtList } });
   } catch (error) {
     console.log(error);
     message.channel.send({ embed: { color: c.FAIL_COL, description: "Error listing missions." } });
@@ -300,9 +326,9 @@ exports.listMissionProfiles = async function(args, message, client) {
   }
 }
 
-exports.payMission = async function(args, message, client) {
+exports.payMission = async function(args, message, client, automated) {
   try {
-    if (!utils.checkAdminRole(message)) {
+    if (!utils.checkAdminRole(message) && !automated) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
@@ -319,8 +345,8 @@ exports.payMission = async function(args, message, client) {
       return;
     }
 
-    var myProfile = await db.getProfile(message.author.id);
-    var myBalance = await db.getBalance(message.author.id, mission.currencyID);
+    var myProfile = await db.getProfile(mission.creator);
+    var myBalance = await db.getBalance(mission.creator, mission.currencyID);
     // make sure mission payer has the funds to pay all the users
     if (!utils.hasEnoughBalance(myBalance, mission.reward)) {
       message.channel.send({ embed: { color: c.FAIL_COL, description: "Sorry, you don't have enough funds to pay the mission!" } });
@@ -335,6 +361,12 @@ exports.payMission = async function(args, message, client) {
         missionProfiles.splice(i, 1)
         break
       }
+    }
+
+    if (!missionProfiles.length > 0) {
+      message.channel.send({ embed: { color: c.FAIL_COL, description: "Nobody took part in the mission, there's nobody to pay!" } });
+      exports.archiveMission([mission.missionID], message, client, true);
+      return;
     }
 
     var txtUsers = "";
@@ -388,7 +420,7 @@ exports.payMission = async function(args, message, client) {
     let targets = [];
     var tipInfo = [1, tipPerParticipantWhole, tipStr];
     for (var i = 0; i < missionProfiles.length; i++) {
-      tipSuccess = await tips.tipUser(tipInfo, myProfile, missionProfiles[i], c.MISSION, client, message);
+      tipSuccess = await tips.tipUser(tipInfo, myProfile, missionProfiles[i], c.MISSION, client, null);
 
       if (tipSuccess) {
         targets.push(missionProfiles[i].userID);
@@ -427,9 +459,9 @@ exports.payMission = async function(args, message, client) {
   }
 }
 
-exports.archiveMission = async function(args, message, client) {
+exports.archiveMission = async function(args, message, client, automated) {
   try {
-    if (!utils.checkAdminRole(message)) {
+    if (!utils.checkAdminRole(message) && !automated) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
@@ -457,5 +489,34 @@ exports.archiveMission = async function(args, message, client) {
   } catch (error) {
     console.log(error);
     message.channel.send({ embed: { color: c.FAIL_COL, description: "Error archiving mission." } });
+  }
+}
+
+// limit is the time given in mins that an auction will be ending by
+exports.getEndingSoon = async function getEndingSoon(limit) {
+  try {
+    var missions = await db.getAllActiveMissions()
+
+    if (!missions || missions === undefined) {
+      console.log("Error - cannot fetch active missions to check end times")
+    }
+
+    var missionsEnding = []
+
+    for (var i = 0; i < missions.length; i++) {
+      var now = new BigNumber(Date.now())
+      var end = new BigNumber(missions[i].endTime.getTime())
+      var diff = end.minus(now)
+
+      var secsLeft = diff.dividedBy(1000)
+
+      if (secsLeft.lte(limit)) {
+        missionsEnding.push(missions[i])
+      }
+    }
+
+    return missionsEnding
+  } catch (error) {
+    console.log(error)
   }
 }
