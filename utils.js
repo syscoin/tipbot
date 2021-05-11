@@ -71,19 +71,6 @@ exports.getSPT = async function getSPT(tokenStr) {
   }
 }
 
-// tries to find an SPT in the db by GUID and then on the blockchain
-exports.getSPTByGUID = async function getSPTByGUID(tokenGUID) {
-  try {
-    var userSPT = await db.getSPTByGUID(tokenGUID);
-    if (!userSPT) {
-      userSPT = sjs.utils.fetchBackendAsset(backendURL, userSPT.guid);
-    }
-    return userSPT;
-  } catch (error) {
-    console.log(error);
-    return error;
-  }
-}
 exports.getDecimals = async function(tokenStr) {
   try {
     if (tokenStr !== "SYS") {
@@ -153,6 +140,7 @@ exports.fromMilliToMins = function(timeIn) {
   return timeOb
 }
 
+// expects a db Balance, and a number/string amount
 exports.hasEnoughBalance = function(balance, amount) {
   if (!balance) {
     return false
@@ -161,6 +149,8 @@ exports.hasEnoughBalance = function(balance, amount) {
   var amountToSend = new BigNumber(amount)
   var balanceAmount = new BigNumber(balance.amount)
   var availableAmount = balanceAmount.minus(balance.lockedAmount)
+  console.log(availableAmount.toString())
+  console.log(amountToSend.toString())
 
   if (availableAmount.lt(amountToSend)) {
     return false
