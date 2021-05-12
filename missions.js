@@ -355,9 +355,11 @@ exports.listMissionProfiles = async function(args, message, client) {
 
 exports.payMission = async function(args, message, client, automated) {
   try {
-    if (!utils.checkAdminRole(message) && !automated) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
-      return;
+    if (!automated) {
+      if (!utils.checkAdminRole(message)) {
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
+        return;
+      }
     }
 
     var missionName = args[0].toUpperCase();
@@ -421,16 +423,17 @@ exports.payMission = async function(args, message, client, automated) {
     var dividedRewardWhole = utils.toWholeUnit(dividedReward, decimals);
     var decimalCount = utils.decimalCount(dividedRewardWhole.toString())
     if (decimalCount > decimals) {
-      dividedRewardWhole.toFixed(decimals)
+      dividedRewardWhole = new BigNumber(dividedRewardWhole.toFixed(decimals, 1))
     }
     if (decimalCount > config.tipMaxDecimals) {
-      dividedRewardWhole.toFixed(config.tipMaxDecimals)
+      dividedRewardWhole = new BigNumber(dividedRewardWhole.toFixed(config.tipMaxDecimals, 1))
     }
 
     if (dividedRewardWhole.lt(config.tipMin)) {
       message.channel.send({ embed: { color: c.FAIL_COL, description: "The mission payout per participant is below the minimum tip amount on the tipbot." } });
       return;
     }
+
     var tipPerParticipant = new BigNumber(utils.toSats(dividedRewardWhole, decimals));
 
     //Verify the validity of the payout argument.
@@ -442,10 +445,9 @@ exports.payMission = async function(args, message, client, automated) {
     }
 
     let tipSuccess;
-    let tipPerParticipantWhole = utils.toWholeUnit(tipPerParticipant, decimals);
     var totalTip = new BigNumber(0);
     let targets = [];
-    var tipInfo = [1, tipPerParticipantWhole, tipStr];
+    var tipInfo = [1, dividedRewardWhole, tipStr];
     for (var i = 0; i < missionProfiles.length; i++) {
       tipSuccess = await tips.tipUser(tipInfo, myProfile, missionProfiles[i], c.MISSION, client, null);
 
@@ -476,7 +478,7 @@ exports.payMission = async function(args, message, client, automated) {
         line = line + user + "\n ";
       });
       var payoutChannel = client.channels.cache.get(config.missionPayOutsChannel);
-      payoutChannel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + tipPerParticipantWhole.toString() + " " + currencyStr + "** to " + targets.length + " users (Total = " + totalTipWhole.toString() + " " + currencyStr + ") in mission **" + missionName + "** listed below:" + line } });
+      payoutChannel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + dividedRewardWhole.toString() + " " + currencyStr + "** to " + targets.length + " users (Total = " + totalTipWhole.toString() + " " + currencyStr + ") in mission **" + missionName + "** listed below:" + line } });
     })
 
     exports.archiveMission(args, message, client);
@@ -488,9 +490,11 @@ exports.payMission = async function(args, message, client, automated) {
 
 exports.archiveMission = async function(args, message, client, automated) {
   try {
-    if (!utils.checkAdminRole(message) && !automated) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
-      return;
+    if (!automated) {
+      if (!utils.checkAdminRole(message)) {
+        message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
+        return;
+      }
     }
 
     var missionName = args[0];

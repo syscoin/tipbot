@@ -35,7 +35,7 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
 
       if (!discUser) {
         console.log(`User ${fromProfile.userID} not found.`)
-        return
+        return false
       }
 
       if (!message) {
@@ -66,7 +66,7 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
 
           if (!token) {
             msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `Couldn't find the token: ${tipCurrency}. Please ensure you entered the symbol/GUID correctly.`}})
-            return
+            return false
           }
 
           isToken = true
@@ -90,7 +90,7 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
           msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `${currencyStr} is a non-divisible token. It can't have any decimals.`}})
         }
         utils.isSuccessMsgReact(false, message)
-        return
+        return false
       }
 
       let fromProfileBalance = await db.getBalance(fromProfile.userID, tipCurrency)
@@ -144,7 +144,7 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
       if (!enoughBalance) {
         msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `<@${fromProfile.userID}> you don't have enough ${currencyStr}. Please deposit more to continue.`}})
         utils.isSuccessMsgReact(false, message)
-        return
+        return false
       }
 
       // calculate the new balances and update them in the db
