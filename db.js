@@ -197,6 +197,23 @@ exports.createMission = function(id, creator, payout, currency, endDate) {
   }
 }
 
+// edits a mission in the db
+exports.editMission = function(id, payout, currency, endDate) {
+  try {
+    return Mission.findOneAndUpdate({ missionID: id },
+      {
+        reward: payout.toString(),
+        currencyID: currency.toString(),
+        endTime: endDate,
+        active: true
+      },
+      { new: true });
+  } catch (error) {
+    console.log(error)
+    return null
+  }
+}
+
 // finds a mission with the given name
 exports.getMission = function(id) {
   try {

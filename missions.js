@@ -29,7 +29,7 @@ function arraySplit(list, howMany) {
 * args
 * 0 - missionID, 1 - amount (whole), 2 - symbol/guid, 3 - timeAmount with s/m/h/d
 */
-exports.createMission = async function(args, message, client) {
+exports.createMission = async function(args, message, client, edit) {
   try {
     if (!utils.checkAdminRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
@@ -85,10 +85,13 @@ exports.createMission = async function(args, message, client) {
       return;
     }
 
+    // if it isn't an edit operation then make sure mission doesn't already exist
     var mission = await db.getMission(missionName);
-    if (mission) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: "That mission has already been created."}});
-      return;
+    if (!edit) {
+      if (mission) {
+        message.channel.send({embed: { color: c.FAIL_COL, description: "That mission has already been created."}});
+        return;
+      }
     }
 
     if (payout == undefined) {
@@ -152,15 +155,21 @@ exports.createMission = async function(args, message, client) {
     var endDate = new Date(timeMilliSeconds.plus(now).toNumber())
 
     let satValue = utils.toSats(payoutBig, decimals);
-    var missionNew = await db.createMission(missionName, message.author.id, satValue.toString(), gCurrency, endDate);
-    if (missionNew) {
-      message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: Created a new mission named: **" + missionName + "**" } });
+    var missionNew
+    if (!edit) {
+      missionNew = await db.createMission(missionName, message.author.id, satValue.toString(), gCurrency, endDate);
     } else {
-      message.channel.send({ embed: { color: c.FAIL_COL, description: "Creation of new mission failed: **" + missionName + "**" } });
+      missionNew = await db.editMission(missionName, satValue.toString(), gCurrency, endDate);
+    }
+
+    if (missionNew) {
+      message.channel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: Created/edited a mission named: **" + missionName + "**" } });
+    } else {
+      message.channel.send({ embed: { color: c.FAIL_COL, description: "Creation/editing of mission failed: **" + missionName + "**" } });
     }
   } catch (error) {
     console.log(error);
-    message.channel.send({ embed: { color: c.FAIL_COL, description: "Error creating new mission." } });
+    message.channel.send({ embed: { color: c.FAIL_COL, description: "Error creating mission." } });
   }
 }
 

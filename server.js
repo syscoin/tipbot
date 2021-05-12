@@ -520,6 +520,14 @@ switch (command) {
      }
      break
 
+  case "edit":
+  case "editmission":
+    // edit a mission
+    if (message.channel.id == config.missionChannel) {
+      missions.createMission(args, message, client, true)
+    }
+    break
+    
   case "missions":
     // list all active missions
     if (message.channel.id == config.missionChannel) {
