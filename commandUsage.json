@@ -10,5 +10,6 @@
   "bid": "bid [auction ID] [amount]",
   "show": "show [auction ID]",
   "find": "find [symbol/guid]",
-  "giveaway": "giveaway [timeAmount][s/m] [winnerAmount][w] [amount] [symbol/guid]"
+  "giveaway": "giveaway [timeAmount][s/m] [winnerAmount][w] [amount] [symbol/guid]",
+  "createmission": "create [missionName] [payout] [symbol/guid] [timeAmount][s/m/h/d]"
 }
