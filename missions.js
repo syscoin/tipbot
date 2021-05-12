@@ -5,6 +5,7 @@ BigNumber.config({ DECIMAL_PLACES: 8 })
 BigNumber.config({ EXPONENTIAL_AT: 1e+9 })
 
 const c = require('./c.json')
+const com = require('./commandUsage.json')
 const config = require('./config.json')
 var prefix = config.prefix
 
@@ -28,6 +29,11 @@ exports.createMission = async function(args, message, client) {
     if (!utils.checkAdminRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
+    }
+
+    if (!utils.hasAllArgs(args, 4)) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `Missing information. Usage: ${config.prefix}${com.createmission}`}})
+      return
     }
 
     var missionName = args[0];
