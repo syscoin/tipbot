@@ -67,15 +67,15 @@ function getHelpCommands(parm) {
 
       You must be a member of the role **${config.discordAdminRole}** to perform these commands. Also, these can only be performed in a bot channel (no DMs).
 
-      **\`${prefix}createmission [missionName] [payout] [symbol/guid]\`** Create a new mission with the given name, payout and optional symbol/guid. default is SYS
+      **\`${prefix}create [missionName] [payout] [symbol/guid] [timeAmount][s/m/h/d]\`** Create a new mission with the given name, payout and optional symbol/guid. default is SYS
 
       **\`${prefix}add [missionName] @user\`** Adds a user to a mission i.e. they will receive the payout.
 
       **\`${prefix}remove [missionName] @user\`** Removes a user from a mission i.e. they will no longer receive the payout.
 
-      **\`${prefix}list [missionName]\`** Lists all users in the given mission.
+      **\`${prefix}list <missionName>\`** Lists all users in the given mission. 
 
-      **\`${prefix}paymission [missionName]\`** Pays all users that have participated in the given mission.
+      **\`${prefix}pay [missionName]\`** Pays all users that have participated in the given mission.
 
       **\`${prefix}archive [missionName]\`** Archives the given mission.
 
