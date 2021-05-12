@@ -516,7 +516,7 @@ switch (command) {
   case "createmission":
      // create mission
      if (message.channel.id == config.missionChannel) {
-       missions.createMission(args, message, client)
+       missions.createOrEditMission(args, message, client)
      }
      break
 
@@ -524,10 +524,10 @@ switch (command) {
   case "editmission":
     // edit a mission
     if (message.channel.id == config.missionChannel) {
-      missions.createMission(args, message, client, true)
+      missions.createOrEditMission(args, message, client, true)
     }
     break
-    
+
   case "missions":
     // list all active missions
     if (message.channel.id == config.missionChannel) {

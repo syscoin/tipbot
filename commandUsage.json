@@ -11,5 +11,6 @@
   "show": "show [auction ID]",
   "find": "find [symbol/guid]",
   "giveaway": "giveaway [timeAmount][s/m] [winnerAmount][w] [amount] [symbol/guid]",
-  "createmission": "create [missionName] [payout] [symbol/guid] [timeAmount][s/m/h/d]"
+  "createmission": "create [missionName] [payout] [symbol/guid] [timeAmount][s/m/h/d]",
+  "editmission": "create [missionName] [payout] [symbol/guid] [timeAmount][s/m/h/d]"
 }

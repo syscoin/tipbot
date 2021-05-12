@@ -25,11 +25,11 @@ function arraySplit(list, howMany) {
 }
 
 /**
-* command: !create [missionID] [amount] [symbol/guid] [timeAmount][s/m/h/d]
+* command: !create/edit [missionID] [amount] [symbol/guid] [timeAmount][s/m/h/d]
 * args
 * 0 - missionID, 1 - amount (whole), 2 - symbol/guid, 3 - timeAmount with s/m/h/d
 */
-exports.createMission = async function(args, message, client, edit) {
+exports.createOrEditMission = async function(args, message, client, edit) {
   try {
     if (!utils.checkAdminRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
@@ -37,7 +37,11 @@ exports.createMission = async function(args, message, client, edit) {
     }
 
     if (!utils.hasAllArgs(args, 4)) {
-      message.channel.send({embed: { color: c.FAIL_COL, description: `Missing information. Usage: ${config.prefix}${com.createmission}`}})
+      if (!edit) {
+        message.channel.send({embed: { color: c.FAIL_COL, description: `Missing information. Usage: ${config.prefix}${com.createmission}`}})
+      } else {
+        message.channel.send({embed: { color: c.FAIL_COL, description: `Missing information. Usage: ${config.prefix}${com.editmission}`}})
+      }
       return
     }
 
