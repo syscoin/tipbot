@@ -19,7 +19,13 @@ BigNumber.config({ EXPONENTIAL_AT: 1e+9 })
 const db = require('./db.js')
 const utils = require('./utils.js')
 
-// args[1] expects a tip amount in whole number form, not sats
+// sends a tip of the given amount of cryptocurrency from one user to another
+// used by trades/missions/auctions/giveaways to make transfers between users
+/**
+* command: !tip @user [amount] [symbol/guid]
+* args
+* 0 - [amount], 1 - [symbol/guid]
+*/
 exports.tipUser = async function(args, fromProfile, toProfile, type, client, message) {
   try {
     if (args && !args[1].isNaN()) {
@@ -38,6 +44,8 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
         return false
       }
 
+      // if there's no message, i.e. called by another function instead of !tip command
+      // then message the sender directly
       if (!message) {
         msgChanOrUser = discUser
       } else {
@@ -56,6 +64,8 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
         return false
       }
 
+      // set up the currency strings and get the decimals for converting between
+      // wholeUnit and sats later on
       if (args[2] == undefined) {
         tipCurrency = "SYS"
         currencyStr = "SYS"
@@ -75,7 +85,6 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
           var symbol = base64.decode(token.symbol).toUpperCase()
           var tokenStr = `${symbol} (${token.assetGuid})`
           currencyStr = await utils.getExpLink(token.assetGuid, c.TOKEN, tokenStr)
-
           emoji = GEN_EMOJI
         } else {
           tipCurrency = "SYS"
@@ -83,6 +92,8 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
         }
       }
 
+      // make sure the tip can't have more decimals than is possible or supported by
+      // the tipbot
       if (utils.decimalCount(args[1].toString()) > decimals) {
         if (decimals > 0) {
           msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `You are trying to use too many decimals for the ${currencyStr} amount. It can't have any more than ${decimals} decimals.`}})

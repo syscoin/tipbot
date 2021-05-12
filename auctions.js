@@ -29,12 +29,14 @@ const Discord = require('discord.js')
 const paginationEmbed = require('discord-paginationembed');
 const { MessageEmbed } = require('discord.js');
 
+// sort function for bids
 function bidSort(a, b) {
   var amountA = new BigNumber(a.amount)
   var amountB = new BigNumber(b.amount)
   return amountA.minus(amountB)
 }
 
+// returns the highest bid from an array of bids
 function getHighestBid(bids) {
   var sortedBids = bids.sort(bidSort)
   if (sortedBids.length > 0) {
@@ -44,12 +46,14 @@ function getHighestBid(bids) {
   }
 }
 
+// sorts the auction dates by time
 function auctionDateSort(a, b) {
   var timeA = new BigNumber(a.endTime.getTime())
   var timeB = new BigNumber(b.endTime.getTime())
   return timeA.minus(timeB)
 }
 
+// checks if a user has enough balance to bid in an auction
 function hasEnoughBalanceAuction(balance, amount, auction) {
   if (!balance || !auction) {
     return false
@@ -79,6 +83,8 @@ function hasEnoughBalanceAuction(balance, amount, auction) {
   return true
 }
 
+// splits to pages for use with pagination
+// TODO: finish implementing pagination
 function splitToPages(auctionStrings, itemsPerPage) {
   var spliced = []
   while (auctionStrings.length > 0) {
@@ -97,6 +103,7 @@ function splitToPages(auctionStrings, itemsPerPage) {
   return pages
 }
 
+// prints the given set of auctions
 async function printAuctions(auctions, type, message, client) {
   try {
     var auctionString = ""
@@ -141,7 +148,7 @@ async function printAuctions(auctions, type, message, client) {
 /**
 * command: !auction [amount] [token] [timeAmount][m/h/d] [reserve]
 * args
-* 0 - amount, 1 - token, 2 - timeAmount with s/m/h/d, 3 - reserve
+* 0 - amount (whole), 1 - token (SYMBOL/GUID), 2 - timeAmount with s/m/h/d, 3 - reserve (whole)
 */
 exports.createAuction = async function(message, args) {
   try {
@@ -280,7 +287,12 @@ exports.createAuction = async function(message, args) {
   }
 }
 
-// if no bids
+// if no bids, cancels the given auction
+/**
+* command: !cancel [auctionID]
+* args
+* 0 - auctionID
+*/
 exports.cancelAuction = async function(message, args) {
   try {
     var myProfile = await db.getProfile(message.author.id)
@@ -327,6 +339,12 @@ exports.cancelAuction = async function(message, args) {
   }
 }
 
+
+/**
+* command: !bid [missionID] [amount]
+* args
+* 0 - missionID (whole), 1 - amount (whole, sys)
+*/
 exports.bid = async function(message, args) {
   try {
     var myProfile = await db.getProfile(message.author.id)
@@ -377,6 +395,7 @@ exports.bid = async function(message, args) {
       return
     }
 
+    // make sure the bid is higher than the highest bid
     var highestBid, highestBidAmount
     if (auction.bids.length > 0) {
       highestBid = getHighestBid(auction.bids)
@@ -412,7 +431,7 @@ exports.bid = async function(message, args) {
       }
 
       // lock balance so user can't send the token somewhere else before the auction has ended,
-      // or somone has outbid them
+      // or someone outbids them
       var currentLocked = new BigNumber(balance.lockedAmount)
       var newLocked = currentLocked.plus(newBidSats)
       var updatedBalance = await db.editBalanceLocked(message.author.id, config.ctick, newLocked)
@@ -428,6 +447,7 @@ exports.bid = async function(message, args) {
       var reservePrice = new BigNumber(auction.reservePrice)
       var reserve = utils.toWholeUnit(reservePrice, 8)
 
+      // decide reserveMet emoji based on the reserve price
       var reserveMet = CROSS
       if (newBidSats.gte(reservePrice)) {
         reserveMet = TICK
@@ -443,6 +463,7 @@ exports.bid = async function(message, args) {
                     `\nEnds in: ${timeLeft}` +
                     `\nNew highest bid: ${args[1]} ${config.ctick} by <@${message.author.id}>`
 
+      // if there was a previous bid then display it
       if (lastBid) {
         let amountWhole = utils.toWholeUnit(new BigNumber(lastBid.amount), 8)
         auctionStr += `\nPrevious highest bid: ${amountWhole} ${config.ctick} by <@${lastBid.bidder}>`
@@ -460,6 +481,7 @@ exports.bid = async function(message, args) {
   }
 }
 
+// returns any auctions that will end within the given limit
 // limit is the time given in mins that an auction will be ending by
 exports.getEndingSoon = async function getEndingSoon(limit) {
   try {
@@ -490,6 +512,9 @@ exports.getEndingSoon = async function getEndingSoon(limit) {
   }
 }
 
+// ends an auction, if reserve is met then the auction is completed and cryptos are
+// exchanged, otherwise the auction is ended and any locked balances are unlocked
+// This is automated and will be called by endWatcher.js
 exports.endAuction = async function(auctionID, client) {
   try {
     var channel = client.channels.cache.get(config.auctionChannel)
@@ -506,6 +531,7 @@ exports.endAuction = async function(auctionID, client) {
     var highestBidAmount = new BigNumber(highestBid.amount)
     var reserve = new BigNumber(auction.reservePrice)
 
+    // decide reserveMet emoji based on the reserve price and highest bid
     var reserveMet = CROSS
     if (highestBidAmount.gte(reserve)) {
       reserveMet = TICK
@@ -519,6 +545,7 @@ exports.endAuction = async function(auctionID, client) {
     var bidWhole = utils.toWholeUnit(highestBidAmount, 8)
     var reserveWhole = utils.toWholeUnit(reserve, 8)
 
+    // if highest bid is less than reserve then end with no winners
     if (highestBidAmount.lt(reserve)) {
       var endedAuction = await db.endAuction(auctionID)
 
@@ -605,6 +632,7 @@ exports.endAuction = async function(auctionID, client) {
   }
 }
 
+// prints auctions that will end within the given limit
 exports.endingSoon = async function(message, client) {
   try {
     // ending in 30 mins 1800 seconds
@@ -621,6 +649,7 @@ exports.endingSoon = async function(message, client) {
   }
 }
 
+// prints one auction to the channel
 async function printAuction(auction, message, client) {
   try {
     var highestBid = getHighestBid(auction.bids)
@@ -674,6 +703,7 @@ async function printAuction(auction, message, client) {
   }
 }
 
+// gets the details of one auction and prints it
 exports.showAuction = async function(message, args, client) {
   try {
     if (!args[0]) {
@@ -695,6 +725,12 @@ exports.showAuction = async function(message, args, client) {
 
 }
 
+// finds any auctions selling tokens with the given GUID and prints them
+/**
+* command: !find [tokenGUID]
+* args
+* 0 - tokenGUID
+*/
 exports.findAuctions = async function(message, args, client) {
   try {
     if (!args[0]) {

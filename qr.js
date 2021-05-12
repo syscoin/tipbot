@@ -17,6 +17,7 @@ async function checkQRDir() {
 
 checkQRDir()
 
+// adds a logo to the middle of the qr code, cuz it looks cool...
 async function addLogo(pathToFile, pathToLogoQR) {
   try {
     var image = await sharp(pathToFile)
@@ -31,6 +32,7 @@ async function addLogo(pathToFile, pathToLogoQR) {
   }
 }
 
+// returns the qr code with the deposit address in the given user's profile
 exports.getQR = async function(userID) {
   try {
     var profile = await db.getProfile(userID)

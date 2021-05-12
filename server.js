@@ -549,10 +549,10 @@ switch (command) {
     break
 
   case "list":
-    // show all profiles added to a mission
+    // show all details of a mission, or print all active missions
     if (message.channel.id == config.missionChannel) {
       if (args.length > 0) {
-        missions.listMissionProfiles(args, message, client)
+        missions.printMissionDetails(args, message, client)
       } else {
         missions.listMissions(args, message, client)
       }

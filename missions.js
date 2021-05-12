@@ -24,6 +24,11 @@ function arraySplit(list, howMany) {
   return result;
 }
 
+/**
+* command: !create [missionID] [amount] [symbol/guid] [timeAmount][s/m/h/d]
+* args
+* 0 - missionID, 1 - amount (whole), 2 - symbol/guid, 3 - timeAmount with s/m/h/d
+*/
 exports.createMission = async function(args, message, client) {
   try {
     if (!utils.checkAdminRole(message)) {
@@ -44,6 +49,8 @@ exports.createMission = async function(args, message, client) {
       token;
     var decimals = 8;
 
+    // set up currency strings and get decimals for converting
+    // between whole and sats later
     if (args[2]) {
       gCurrency = args[2].toUpperCase();
       if (gCurrency !== "SYS") {
@@ -91,6 +98,7 @@ exports.createMission = async function(args, message, client) {
 
     let payoutBig = new BigNumber(payout);
 
+    // time object storing the length and unit of time
     var time = {
         amount: new BigNumber(parseInt(args[3].substr(0, args[3].length - 1))),
         unit: args[3].substr(args[3].length - 1, args[3].length).toUpperCase()
@@ -98,9 +106,9 @@ exports.createMission = async function(args, message, client) {
 
     var timeMilliSeconds = utils.convertToMillisecs(time.amount, time.unit)
 
+    // check to ensure the amount arguments are valid
     var amountStr = ["payout", "time amount"]
     var amounts = [payoutBig, timeMilliSeconds]
-
     for (var i = 0; i < amounts.length; i++) {
       if (amounts[i].isNaN()) {
         message.channel.send({embed: { color: c.FAIL_COL, description: `The ${amountStr[i]} given is not a number.`}})
@@ -113,13 +121,15 @@ exports.createMission = async function(args, message, client) {
       }
     }
 
+    // check to ensure the time isn't longer than it can be
     if (timeMilliSeconds.gt(utils.convertToMillisecs(config.maxAuctionTimeDays))) {
       message.channel.send({embed: { color: c.FAIL_COL, description: `The max auction time is ${config.maxAuctionTimeDays} day(s). Try again with a lower auction time.`}})
       return
     }
 
+    // check to ensure the decimals of the amount given are valid, i.e. there can't be
+    // more decimals than is possible, or than the max decimals allowed by the tipbot
     var decimalCount = utils.decimalCount(payoutBig.toString())
-
     if (decimalCount > decimals) {
       if (decimals > 0) {
         if (decimals > config.tipMaxDecimals) {
@@ -154,6 +164,14 @@ exports.createMission = async function(args, message, client) {
   }
 }
 
+
+// lists the detais of a mission, or if no mission is given it will return a list of
+// active missions
+/**
+* command: !list <missionID>
+* args
+* 0 - missionID (optional)
+*/
 exports.listMissions = async function(args, message, client) {
   try {
     if (!utils.checkAdminRole(message)) {
@@ -175,6 +193,12 @@ exports.listMissions = async function(args, message, client) {
   }
 }
 
+// archives a specific mission
+/**
+* command: !archive [missionID]
+* args
+* 0 - missionID
+*/
 exports.missionArchive = async function(args, message, client) {
   try {
     if (!utils.checkAdminRole(message)) {
@@ -196,6 +220,12 @@ exports.missionArchive = async function(args, message, client) {
   }
 }
 
+// removes a specific user profile from a mission
+/**
+* command: !remove [missionID] @user
+* args
+* 0 - missionID, 1 - @user
+*/
 exports.removeFromMission = async function(args, message, client) {
   try {
     if (!utils.checkAdminRole(message)) {
@@ -218,10 +248,12 @@ exports.removeFromMission = async function(args, message, client) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, that mission does not exist or has been archived."}});
       return;
     }
+
     if (user == undefined) {
       message.channel.send({embed: { color: c.FAIL_COL, description: `Please use this format to remove a user from mission: ${prefix}remove mission10 @user`}});
       return;
     }
+
     var userID = user.replace(/<@!|>/gi, "");
     var profileInMission = await db.checkProfileInMission(userID, missionName);
     if (!profileInMission) {
@@ -242,6 +274,13 @@ exports.removeFromMission = async function(args, message, client) {
   }
 }
 
+
+// adds a specific user profile to the mission
+/**
+* command: !add [missionID] @user
+* args
+* 0 - missionID, 1 - @user
+*/
 exports.addToMission = async function(args, message, client) {
   try {
     if (!utils.checkAdminRole(message)) {
@@ -288,7 +327,13 @@ exports.addToMission = async function(args, message, client) {
   }
 }
 
-exports.listMissionProfiles = async function(args, message, client) {
+// prints the details of a given mission
+/**
+* command: !list <missionID>
+* args
+* 0 - missionID (optional)
+*/
+exports.printMissionDetails = async function(args, message, client) {
   try {
     if (!utils.checkAdminRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
@@ -307,6 +352,8 @@ exports.listMissionProfiles = async function(args, message, client) {
       return;
     }
 
+    // set up currency string and get the decimals for converting between
+    // wholeUnit and sats later on
     var token, decimals, currencyStr;
     if (mission.currencyID !== "SYS") {
       try {
@@ -332,6 +379,8 @@ exports.listMissionProfiles = async function(args, message, client) {
     missionProfiles.forEach(profile => {
       txtUsers = txtUsers + "<@" + profile.userID + "> ";
     })
+
+    // get the time remaining until the mission ends
     var remainingTime = utils.getRemainingTimeStr(mission.endTime)
     message.channel.send({ embed: { color: c.SUCCESS_COL, title: `${mission.missionID}`, description: `Ending in: ${remainingTime}\nTotal payout: ${payoutWhole} ${currencyStr}\n** ${missionProfiles.length} ** users in mission ** ${missionName} ** listed below: ` } });
 
@@ -353,6 +402,13 @@ exports.listMissionProfiles = async function(args, message, client) {
   }
 }
 
+
+// pays out the previously specified rewards to the participants in the given mission
+/**
+* command: !pay <missionID>
+* args
+* 0 - missionID (optional)
+*/
 exports.payMission = async function(args, message, client, automated) {
   try {
     if (!automated) {
@@ -382,7 +438,7 @@ exports.payMission = async function(args, message, client, automated) {
       return;
     }
 
-    // remove mission creator if they're in there
+    // remove mission creator if they're in there (naughty)
     var missionReward = new BigNumber(mission.reward)
     var missionProfiles = await db.getMissionProfiles(missionName);
     for (var i = 0; i < missionProfiles.length; i++) {
@@ -420,6 +476,7 @@ exports.payMission = async function(args, message, client, automated) {
     var dividedReward = missionReward.dividedBy(missionProfiles.length);
 
     // make sure reward can't have more decimals than is possible or allowed
+    // on the tipbot
     var dividedRewardWhole = utils.toWholeUnit(dividedReward, decimals);
     var decimalCount = utils.decimalCount(dividedRewardWhole.toString())
     if (decimalCount > decimals) {
@@ -451,6 +508,8 @@ exports.payMission = async function(args, message, client, automated) {
     for (var i = 0; i < missionProfiles.length; i++) {
       tipSuccess = await tips.tipUser(tipInfo, myProfile, missionProfiles[i], c.MISSION, client, null);
 
+      // if tip is successful add user to the list of targets for logging,
+      // and for printing to the channel
       if (tipSuccess) {
         targets.push(missionProfiles[i].userID);
         txtUsers += "<@" + missionProfiles[i].userID + "> ";
@@ -488,6 +547,12 @@ exports.payMission = async function(args, message, client, automated) {
   }
 }
 
+// archives a specific mission, i.e. it's no longer active and participants can't be added to it
+/**
+* command: !archive <missionID>
+* args
+* 0 - missionID (optional)
+*/
 exports.archiveMission = async function(args, message, client, automated) {
   try {
     if (!automated) {
@@ -523,6 +588,7 @@ exports.archiveMission = async function(args, message, client, automated) {
   }
 }
 
+// gets any missions that will be ending within the given limit
 // limit is the time given in mins that an auction will be ending by
 exports.getEndingSoon = async function getEndingSoon(limit) {
   try {

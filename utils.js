@@ -55,7 +55,7 @@ exports.checkAdminRole = function(message) {
   }
 }
 
-// tries to find an SPT in the db and then on the blockchain
+// tries to find an SPT link to a GUID in the db, if that fails it tries the backend
 exports.getSPT = async function getSPT(tokenStr) {
   try {
     tokenStr = tokenStr.toUpperCase()
@@ -71,6 +71,7 @@ exports.getSPT = async function getSPT(tokenStr) {
   }
 }
 
+// returns the number of decimals of the given cryptocurrency
 exports.getDecimals = async function(tokenStr) {
   try {
     if (tokenStr !== "SYS") {
@@ -90,6 +91,7 @@ exports.getDecimals = async function(tokenStr) {
   }
 }
 
+// returns a string identifying the cryptocurrency (either GUID or SYS)
 exports.getCurrencyStr = async function(tokenStr) {
   try {
     if (tokenStr !== "SYS") {
@@ -109,6 +111,7 @@ exports.getCurrencyStr = async function(tokenStr) {
   }
 }
 
+// converts from the given time unit to milliseconds
 exports.convertToMillisecs = function(time, unit) {
   switch (unit) {
     case "D":
@@ -123,6 +126,7 @@ exports.convertToMillisecs = function(time, unit) {
   }
 }
 
+// converts from milliseconds to minutes
 exports.fromMilliToMins = function(timeIn) {
 
   // seconds
@@ -140,6 +144,7 @@ exports.fromMilliToMins = function(timeIn) {
   return timeOb
 }
 
+// returns whether the given balance has enough in it to send the given amount
 // expects a db Balance, and a number/string amount
 exports.hasEnoughBalance = function(balance, amount) {
   if (!balance) {
@@ -149,8 +154,6 @@ exports.hasEnoughBalance = function(balance, amount) {
   var amountToSend = new BigNumber(amount)
   var balanceAmount = new BigNumber(balance.amount)
   var availableAmount = balanceAmount.minus(balance.lockedAmount)
-  console.log(availableAmount.toString())
-  console.log(amountToSend.toString())
 
   if (availableAmount.lt(amountToSend)) {
     return false
@@ -163,6 +166,7 @@ exports.hasEnoughBalance = function(balance, amount) {
   return true
 }
 
+// returns a hyperlink to the specified blockbook address/token/tx
 exports.getExpLink = async function(data, type, title) {
   try {
     var url
@@ -175,6 +179,7 @@ exports.getExpLink = async function(data, type, title) {
         var tok = await sjs.utils.fetchBackendAsset(backendURL, data)
 
         if (tok instanceof Error) {
+          console.log("Error getting token")
           console.log(data)
           return false
         }
@@ -197,6 +202,8 @@ exports.getExpLink = async function(data, type, title) {
   }
 }
 
+// unlocks an amount in a user's balance (locking used in auctions/trades
+// to ensure users can't move their locked funds to cheat the system)
 exports.unlockAmount = async function(currency, userID, amount) {
   var balance = await db.getBalance(userID, currency)
   var currentLocked = new BigNumber(balance.lockedAmount)
@@ -205,13 +212,15 @@ exports.unlockAmount = async function(currency, userID, amount) {
   return db.editBalanceLocked(userID, currency, newLocked)
 }
 
+// deletes the message after the given delay in milliseconds
 exports.deleteMsgAfterDelay = function(msg, tOut) {
   msg.delete({timeout: tOut})
 }
 
-exports.isSuccessMsgReact = function(isSent, message) {
+// reacts to a given message with the specified success/failure emoji
+exports.isSuccessMsgReact = function(isSuccess, message) {
   if (message && message !== undefined) {
-    if (isSent) {
+    if (isSuccess) {
       message.react(SUCCESS_EMOJI)
     } else {
       message.react(FAIL_EMOJI)
@@ -219,10 +228,12 @@ exports.isSuccessMsgReact = function(isSent, message) {
   }
 }
 
+// checks if the correct number of arguments have been provided
 exports.hasAllArgs = function(args, numOfArgs) {
   return args.length >= numOfArgs
 }
 
+// returns the remaining time between now and the end date
 exports.getRemainingTime = function(endDate) {
   var now = lux.DateTime.now()
   var end = lux.DateTime.fromISO(endDate.toISOString())
@@ -230,6 +241,7 @@ exports.getRemainingTime = function(endDate) {
   return end.diff(now, ['days', 'hours', 'minutes', 'seconds'])
 }
 
+// returns a string with days/hours/minutes/seconds remaining until the endDate
 exports.getRemainingTimeStr = function(endDate) {
   var endsIn = exports.getRemainingTime(endDate)
 

@@ -17,6 +17,8 @@ var HDSigner, syscoinjs
 const sjs = require('syscoinjs-lib')
 const BN = sjs.utils.BN
 
+// signs and sends a tx onchain, edited from the default Syscoin function to return the txID
+// for later use
 async function signAndSend(res, HDSigner, notaryAssets) {
   try {
     // notarize if necessary
@@ -46,6 +48,7 @@ async function signAndSend(res, HDSigner, notaryAssets) {
   }
 }
 
+// used to send a tx onchain
 async function sendOnchain(sendTo, amount, currency) {
   try {
     const xpub = HDSigner.getAccountXpub()
@@ -88,6 +91,12 @@ async function sendOnchain(sendTo, amount, currency) {
   }
 }
 
+// withdraws the specified amount of the given cryptocurrency
+/**
+* command: !withdraw [amount] [symbol/guid]
+* args
+* 0 - amount, 1 - symbol/guid
+*/
 exports.withdraw = async function(args, message, client, signer, sysjs) {
   try {
     HDSigner = signer
@@ -174,6 +183,7 @@ exports.withdraw = async function(args, message, client, signer, sysjs) {
           return
         }
 
+        // send tx onchain, if tx is successful then edit the user's balances, and log the action
         txResult = await sendOnchain(sendTo, withdrawAmount, currencyID)
         if (txResult.txID) {
           let updatedBalance = myBalanceAmount.sub(withdrawAmount)

@@ -1,5 +1,5 @@
 /**
-* Watches for auctions that will be ending soon and ensures that they are
+* Watches for auctions/trades/mission that will be ending soon and ensures that they are
 * ended at the right time.
 */
 
@@ -22,6 +22,8 @@ var exports = module.exports = function(client) {
 
   var intervals = []
 
+  // higher frequency check for the end of an auction
+  // calls the relevant function when it ends
   async function checkAndEndAuction(auctionID) {
     try {
       var now = Date.now()
@@ -38,6 +40,8 @@ var exports = module.exports = function(client) {
     }
   }
 
+  // higher frequency check for the end of a trade
+  // calls the relevant function when it ends
   async function checkAndEndTrade(tradeID) {
     try {
       var now = Date.now()
@@ -58,6 +62,8 @@ var exports = module.exports = function(client) {
     }
   }
 
+  // higher frequency check for the end of a mission
+  // calls the relevant function when it ends
   async function checkAndEndMission(missionID) {
     try {
       var now = Date.now()
@@ -79,15 +85,12 @@ var exports = module.exports = function(client) {
     }
   }
 
-
-
   // checks for auctions/trades/missions ending within a certain time and for those that will it
   // then adds a higher frequency interval to ensure they end at the right time
   async function checkEnding() {
     try {
       // ending within 2 minutes
       var endingAuctions = await auctionsJS.getEndingSoon(120)
-
       if (endingAuctions) {
         for (var i = 0; i < endingAuctions.length; i++) {
           var interval = intervals[endingAuctions[i].auctionID]
@@ -98,8 +101,8 @@ var exports = module.exports = function(client) {
         }
       }
 
+      // ending within 1 minute
       var endingTrades = await tradesJS.getEndingSoon(60)
-
       if (endingTrades) {
         for (var i = 0; i < endingTrades.length; i++) {
           var interval = intervals[endingTrades[i].tradeID]
@@ -110,8 +113,8 @@ var exports = module.exports = function(client) {
         }
       }
 
+      // ending within 2 minutes
       var endingMissions = await missionsJS.getEndingSoon(120)
-
       if (endingMissions) {
         for (var i = 0; i < endingMissions.length; i++) {
           var interval = intervals[endingMissions[i].missionID]

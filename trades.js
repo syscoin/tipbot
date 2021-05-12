@@ -22,6 +22,7 @@ var LocalStorage = require('node-localstorage').LocalStorage
 localStorage = new LocalStorage('./ls')
 var ls = require("./ls")
 
+// prints the given array of trades to the channel
 async function printTrades(trades, message, client) {
   try {
     var userArr = []
@@ -91,6 +92,13 @@ async function printTrades(trades, message, client) {
   }
 }
 
+
+// cancel the trade with the given tradeID
+/**
+* command: !cancel <tradeID>
+* args
+* 0 - tradeID
+*/
 async function cancelTrade(message, id, timedOut) {
   try {
     var trade = await db.getTrade(id)
@@ -120,10 +128,14 @@ async function cancelTrade(message, id, timedOut) {
   }
 }
 
+// this ends a specific trade given by the id
+// this is called by endWatcher.js when the trade's time runs out
 exports.endTrade = async function(message, id, timedOut) {
   cancelTrade(message, id, timedOut)
 }
 
+// creates a trade with the specified parameters, i.e. for swapping userA's token amount
+// for userB's token amount.
 /*
 * command: UserA: !trade [amount] [nft symbol/guid] for [amount] [nft symbol/guid] with @UserB
 * args
@@ -229,6 +241,7 @@ exports.createTrade = async function(message, args) {
     var newLocked = currentLocked.plus(amountInSats[0])
     var updatedBalance = await db.editBalanceLocked(message.author.id, cryptos[0], newLocked)
 
+    // increment the tradeIndex to the next number
     var tradeIndex = ls.get("tradeIndex")
     if (!tradeIndex) {
       ls.set("tradeIndex", 0)
@@ -238,6 +251,7 @@ exports.createTrade = async function(message, args) {
     }
     console.log("Trade index: " + ls.get("tradeIndex"))
 
+    // calculate the endDate
     var now = Date.now()
     var timeMilliSeconds = utils.convertToMillisecs(new BigNumber(config.tradeTime), "M")
     var endDate = new Date(timeMilliSeconds.plus(now).toNumber())
@@ -269,6 +283,13 @@ exports.createTrade = async function(message, args) {
   }
 }
 
+// accepts a given trade, can only be performed by the user specified in the
+// creation of the trade
+/**
+* command: !accept [tradeID]
+* args
+* 0 - tradeID
+*/
 exports.acceptTrade = async function(message, args, client) {
   try {
     var myProfile = await db.getProfile(message.author.id)
@@ -359,6 +380,13 @@ exports.acceptTrade = async function(message, args, client) {
   }
 }
 
+
+// cancels the trade with the specified tradeID
+/**
+* command: !cancel [tradeID]
+* args
+* 0 - tradeID
+*/
 exports.cancelTrade = async function(message, args) {
   try {
     var myProfile = await db.getProfile(message.author.id)
@@ -385,6 +413,13 @@ exports.cancelTrade = async function(message, args) {
   }
 }
 
+// prints a list of recent trades with the specified symbol/guid, if this isn't provided
+// then a list of recent trades is printed instead
+/**
+* command: !recent <symbol/guid>
+* args
+* 0 - symbol/guid
+*/
 exports.recentTrades = async function(message, args, client) {
   try {
     var token
@@ -426,6 +461,7 @@ exports.recentTrades = async function(message, args, client) {
   }
 }
 
+// gets any trades that are within the specified time limit
 // limit is the time given in mins that a trade will be ending by
 exports.getEndingSoon = async function getEndingSoon(limit) {
   try {
