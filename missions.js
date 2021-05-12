@@ -481,7 +481,7 @@ exports.payMission = async function(args, message, client, automated) {
       payoutChannel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + dividedRewardWhole.toString() + " " + currencyStr + "** to " + targets.length + " users (Total = " + totalTipWhole.toString() + " " + currencyStr + ") in mission **" + missionName + "** listed below:" + line } });
     })
 
-    exports.archiveMission(args, message, client);
+    exports.archiveMission(args, message, client, true);
   } catch (error) {
     console.log(error);
     message.channel.send({ embed: { color: c.FAIL_COL, description: "Error paying mission." } });
