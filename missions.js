@@ -564,7 +564,7 @@ exports.payMission = async function(args, message, client, automated) {
         if (tipSuccess) {
           suggesterStr = `Good suggestion! <@${mission.suggesterID}> paid ${suggesterPayoutWhole} ${currencyStr} for suggesting the mission!`
         } else {
-          message.channel.send({ embed: { color: c.FAIL_COL, description: `You didn't have ${suggesterPayoutWhole} ${currencyStr} to pay the suggester!` } });
+          message.channel.send({ embed: { color: c.FAIL_COL, description: `Sending failed! You couldn't pay the suggester!` } });
         }
       }
     }
