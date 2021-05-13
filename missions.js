@@ -170,11 +170,12 @@ exports.createOrEditMission = async function(args, message, client, edit) {
     var endDate = new Date(timeMilliSeconds.plus(now).toNumber())
 
     let satValue = utils.toSats(payoutBig, decimals);
+    let satSuggesterValue = utils.toSats(suggesterPayout, decimals)
     var missionNew
     if (!edit) {
-      missionNew = await db.createMission(missionName, message.author.id, satValue.toString(), gCurrency, endDate, suggesterID, suggesterPayout);
+      missionNew = await db.createMission(missionName, message.author.id, satValue, gCurrency, endDate, suggesterID, satSuggesterValue);
     } else {
-      missionNew = await db.editMission(missionName, satValue.toString(), gCurrency, endDate, suggesterID, suggesterPayout);
+      missionNew = await db.editMission(missionName, satValue, gCurrency, endDate, suggesterID, satSuggesterValue);
     }
 
     if (missionNew) {

@@ -187,7 +187,7 @@ exports.createMission = function(id, creator, payout, currency, endDate, suggest
         creator: creator,
         reward: payout.toString(),
         suggesterID: suggesterID,
-        suggesterPayout: suggesterPayout,
+        suggesterPayout: suggesterPayout.toString(),
         currencyID: currency.toString(),
         profiles: new Array(),
         dateCreated: new Date(),
@@ -225,7 +225,7 @@ exports.editMission = function(id, payout, currency, endDate, suggesterID, sugge
         {
           reward: payout.toString(),
           suggesterID: suggesterID,
-          suggesterPayout: suggesterPayout,
+          suggesterPayout: suggesterPayout.toString(),
           currencyID: currency.toString(),
           endTime: endDate,
           active: true
@@ -478,7 +478,7 @@ exports.getLiveTrades = async function() {
       { $match:
         { "completedTime": { $eq: null}}
       },
-      { $sort: { endTime: -1 } }
+      { $sort: { endTime: 1 } }
     ]);
 
     if (trades) {
@@ -500,7 +500,7 @@ exports.getRecentTrades = async function(tradeCount) {
       { $match:
         { "completedTime": { $ne: null}}
       },
-      { $sort: { completedTime: -1 } },
+      { $sort: { completedTime: 1 } },
       { $facet: {
         results: [{ $skip: 0 }, { $limit: tradeCount }],
         count: [{ $count: 'count' }]
@@ -534,7 +534,7 @@ exports.getRecentTokenTrades = async function(token, tradeCount) {
           ]
         }
       },
-      { $sort: { completedTime: -1 } },
+      { $sort: { completedTime: 1 } },
       { $facet: {
         results: [{ $skip: 0 }, { $limit: tradeCount }],
         count: [{ $count: 'count' }]
@@ -584,12 +584,12 @@ exports.getAuction = function(id) {
   }
 }
 
-// Returns auctions with the given token that will be ending soonest
+// Returns auctions with the given token
 exports.getTokenAuctions = function(guid, auctionCount) {
   try {
     return Auction.find({ token : guid })
                   .populate({ path: 'bids', model: Bid })
-                  .sort({ endTime: -1 })
+                  .sort({ endTime: 1 })
                   .limit( auctionCount )
   } catch (error) {
     console.log(error)
@@ -602,7 +602,7 @@ exports.getLiveAuctions = function(auctionCount) {
   try {
     return Auction.find({ ended: false })
                   .populate({ path: 'bids', model: Bid })
-                  .sort({ endTime: -1 })
+                  .sort({ endTime: 1 })
   } catch (error) {
     console.log(error)
     return null
