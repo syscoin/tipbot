@@ -179,7 +179,32 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
         message.channel.send({embed: { color: c.SUCCESS_COL, description: `${emoji} <@${fromProfile.userID}> sent **${tipWhole.toString()}** ${currencyStr} to <@${toProfile.userID}>! ${emoji}`}});
       }
 
-      var actionStr = `Tip: ${fromProfile.userID} | ${tipWhole.toString()} ${tipCurrency} to ${toProfile.userID}`
+      var typeStr = ""
+      switch (type) {
+        case c.GENERAL:
+          typeStr = "GENERAL"
+          break
+        case c.AUCTION:
+          typeStr = "AUCTION"
+          break
+        case c.TRADE:
+          typeStr = "TRADE"
+          break
+        case c.MISSION:
+          typeStr = "MISSION"
+          break
+        case c.GIVEAWAY:
+          typeStr = "GIVEAWAY"
+          break
+        case c.EXCHANGE:
+          typeStr = "EXCHANGE"
+          break
+        default:
+          typeStr = "GENERAL"
+          break
+      }
+
+      var actionStr = `${typeStr} Tip: ${fromProfile.userID} | ${tipWhole.toString()} ${tipCurrency} to ${toProfile.userID}`
       console.log(actionStr)
       let log = await db.createLog(fromProfile.userID, actionStr, [toProfile.userID], tipWhole.toString())
 
