@@ -20,7 +20,8 @@
   "tipMaxDecimals": 4,
   "tradeTime": 5,
   "maxAuctionTimeDays": 5,
-  "recentTrades": 5,
+  "itemsPerPage": 5,
+  "maxItems": 15,
   "blockURL": "",
   "mnemonic": ""
 }
