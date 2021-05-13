@@ -841,6 +841,13 @@ switch (command) {
     }
     break
 
+  case "findold":
+    // retrieves and prints the information of old auctions that include the given token
+    if (message.channel.id == config.auctionChannel) {
+      auctions.findAuctions(message, args, client, true)
+    }
+    break
+
   case "giveaway":
     // creates a giveaway that will randomly select a given number of users who react to the message
     // within a given time and will give the specified amount of SYS or SPTs to the selected winners

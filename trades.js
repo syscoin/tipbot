@@ -15,6 +15,7 @@ const sjs = require('syscoinjs-lib')
 const backendURL = config.blockURL
 
 const db = require('./db.js')
+const pagination = require('./pagination.js')
 const tips = require('./tips.js')
 const utils = require('./utils.js')
 
@@ -28,9 +29,10 @@ async function printTrades(trades, message, client) {
     var userArr = []
     var tokenStrArr = []
     var tokenArr = []
-
+    var tradeStrings = []
+    console.log(trades.length)
     for (var i = 0; i < trades.length; i++) {
-      if (!userArr[trades[i].userA]) {
+      if (userArr[trades[i].userA] === undefined) {
         userArr[trades[i].userA] = (await client.users.fetch(trades[i].userA)).username
       }
 
@@ -38,7 +40,7 @@ async function printTrades(trades, message, client) {
         userArr[trades[i].userB] = (await client.users.fetch(trades[i].userB)).username
       }
 
-      if (!tokenStrArr[trades[i].tokenA]) {
+      if (tokenStrArr[trades[i].tokenA] === undefined) {
         if (trades[i].tokenA !== "SYS") {
           tokenStrArr[trades[i].tokenA] = await utils.getExpLink(trades[i].tokenA, c.TOKEN)
         } else {
@@ -46,7 +48,7 @@ async function printTrades(trades, message, client) {
         }
       }
 
-      if (!tokenStrArr[trades[i].tokenB]) {
+      if (tokenStrArr[trades[i].tokenB] === undefined) {
         if (trades[i].tokenB !== "SYS") {
           tokenStrArr[trades[i].tokenB] = await utils.getExpLink(trades[i].tokenB, c.TOKEN)
         } else {
@@ -54,7 +56,7 @@ async function printTrades(trades, message, client) {
         }
       }
 
-      if (!tokenArr[trades[i].tokenA]) {
+      if (tokenArr[trades[i].tokenA] === undefined) {
         if (trades[i].tokenA !== "SYS") {
           tokenArr[trades[i].tokenA] = await utils.getSPT(trades[i].tokenA)
         } else {
@@ -62,7 +64,7 @@ async function printTrades(trades, message, client) {
         }
       }
 
-      if (!tokenArr[trades[i].tokenB]) {
+      if (tokenArr[trades[i].tokenB] === undefined) {
         if (trades[i].tokenB !== "SYS") {
           tokenArr[trades[i].tokenB] = await utils.getSPT(trades[i].tokenB)
         } else {
@@ -71,18 +73,21 @@ async function printTrades(trades, message, client) {
       }
     }
 
-    var tradeString = ""
-
-    for (var i = trades.length - 1; i >= 0; i--) {
+    for (var i = 0; i < trades.length; i++) {
       var t = trades[i]
       let amountA = utils.toWholeUnit(new BigNumber(t.amountA), tokenArr[t.tokenA].decimals)
       let amountB = utils.toWholeUnit(new BigNumber(t.amountB), tokenArr[t.tokenB].decimals)
-      tradeString += `\n\nTrade ${t.tradeID} | Date: ${t.completedTime}`
-      tradeString += `\n\t${userArr[t.userA]} <-> ${userArr[t.userB]} | ${amountA} ${tokenStrArr[t.tokenA]} for ${amountB} ${tokenStrArr[t.tokenB]}`
+
+      var timeDiff = utils.getTimeDiffStr(new Date(t.completedTime), true)
+
+      tradeStrings.push("")
+      tradeStrings[i] += `\n\nTrade ${t.tradeID} | Ended: ${timeDiff} ago`
+      tradeStrings[i] += `\n${userArr[t.userA]} <-> ${userArr[t.userB]} | ${amountA} ${tokenStrArr[t.tokenA]} for ${amountB} ${tokenStrArr[t.tokenB]}`
     }
 
-    if (tradeString.length !== 0) {
-      message.channel.send({embed: { color: c.SUCCESS_COL, description: tradeString }})
+    if (trades.length > 0) {
+      var channel = client.channels.cache.get(config.tradeChannel)
+      pagination.createPagination(tradeStrings, "Trades", channel)
     } else {
       message.channel.send({embed: { color: c.FAIL_COL, description: "No recent trades to show." }})
     }
@@ -438,7 +443,7 @@ exports.recentTrades = async function(message, args, client) {
         token = "SYS"
       }
 
-      var tokenTrades = await db.getRecentTokenTrades(token, config.recentTrades)
+      var tokenTrades = await db.getRecentTokenTrades(token, config.maxItems)
       if (!tokenTrades) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "Can't get recent trades. Please try again later." }})
         return
@@ -447,7 +452,7 @@ exports.recentTrades = async function(message, args, client) {
       printTrades(tokenTrades, message, client)
     } else {
 
-      var trades = await db.getRecentTrades(config.recentTrades)
+      var trades = await db.getRecentTrades(config.maxItems)
       if (!trades) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "Can't get recent trades. Please try again later." }})
         return

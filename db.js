@@ -478,7 +478,7 @@ exports.getLiveTrades = async function() {
       { $match:
         { "completedTime": { $eq: null}}
       },
-      { $sort: { endTime: 1 } }
+      { $sort: { endTime: -1 } }
     ]);
 
     if (trades) {
@@ -500,7 +500,7 @@ exports.getRecentTrades = async function(tradeCount) {
       { $match:
         { "completedTime": { $ne: null}}
       },
-      { $sort: { completedTime: 1 } },
+      { $sort: { completedTime: -1 } },
       { $facet: {
         results: [{ $skip: 0 }, { $limit: tradeCount }],
         count: [{ $count: 'count' }]
@@ -534,7 +534,7 @@ exports.getRecentTokenTrades = async function(token, tradeCount) {
           ]
         }
       },
-      { $sort: { completedTime: 1 } },
+      { $sort: { completedTime: -1 } },
       { $facet: {
         results: [{ $skip: 0 }, { $limit: tradeCount }],
         count: [{ $count: 'count' }]
@@ -585,12 +585,11 @@ exports.getAuction = function(id) {
 }
 
 // Returns auctions with the given token
-exports.getTokenAuctions = function(guid, auctionCount) {
+exports.getTokenAuctions = function(guid) {
   try {
-    return Auction.find({ token : guid })
+    return Auction.find({ token: guid, ended: false })
                   .populate({ path: 'bids', model: Bid })
                   .sort({ endTime: 1 })
-                  .limit( auctionCount )
   } catch (error) {
     console.log(error)
     return null
@@ -598,11 +597,24 @@ exports.getTokenAuctions = function(guid, auctionCount) {
 }
 
 // finds and returns live auctions
-exports.getLiveAuctions = function(auctionCount) {
+exports.getLiveAuctions = function() {
   try {
     return Auction.find({ ended: false })
                   .populate({ path: 'bids', model: Bid })
                   .sort({ endTime: 1 })
+  } catch (error) {
+    console.log(error)
+    return null
+  }
+}
+
+// Returns auctions with the given token
+exports.getOldTokenAuctions = function(guid, auctionCount) {
+  try {
+    return Auction.find({ token: guid, ended: true })
+                  .populate({ path: 'bids', model: Bid })
+                  .sort({ endTime: -1 })
+                  .limit( auctionCount )
   } catch (error) {
     console.log(error)
     return null

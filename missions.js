@@ -207,7 +207,7 @@ exports.listMissions = async function(args, message, client) {
     let activeMissions = await db.getAllActiveMissions();
     var txtList = "";
     for (i = 0; i < activeMissions.length; i++) {
-      var remainingTime = utils.getRemainingTimeStr(activeMissions[i].endTime)
+      var remainingTime = utils.getTimeDiffStr(activeMissions[i].endTime)
       txtList += ` ${activeMissions[i].missionID}: ends in ${remainingTime}\n`;
     }
 
@@ -406,7 +406,7 @@ exports.printMissionDetails = async function(args, message, client) {
     })
 
     // get the time remaining until the mission ends
-    var remainingTime = utils.getRemainingTimeStr(mission.endTime)
+    var remainingTime = utils.getTimeDiffStr(mission.endTime)
 
     if (mission.suggesterID) {
       var suggesterPayoutWhole = utils.toWholeUnit(new BigNumber(mission.suggesterPayout), decimals)

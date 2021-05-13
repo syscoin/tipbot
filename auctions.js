@@ -18,6 +18,7 @@ const sjs = require('syscoinjs-lib')
 const backendURL = config.blockURL
 
 const db = require('./db.js')
+const pagination = require('./pagination.js')
 const tips = require('./tips.js')
 const utils = require('./utils.js')
 
@@ -26,8 +27,8 @@ localStorage = new LocalStorage('./ls')
 var ls = require("./ls")
 
 const Discord = require('discord.js')
-const paginationEmbed = require('discord-paginationembed');
-const { MessageEmbed } = require('discord.js');
+
+var rateLimited = []
 
 // sort function for bids
 function bidSort(a, b) {
@@ -83,43 +84,37 @@ function hasEnoughBalanceAuction(balance, amount, auction) {
   return true
 }
 
-// splits to pages for use with pagination
-// TODO: finish implementing pagination
-function splitToPages(auctionStrings, itemsPerPage) {
-  var spliced = []
-  while (auctionStrings.length > 0) {
-    spliced.push(auctionStrings.splice(0, itemsPerPage))
-  }
-
-  var pages = []
-  for (var i = 0; i < spliced.length; i++) {
-    pages.push(new MessageEmbed)
-    pages[i].description = ""
-    for (var j = 0; j < spliced[i].length; j++) {
-      pages[i].description += spliced[i][j]
-    }
-  }
-
-  return pages
-}
-
 // prints the given set of auctions
-async function printAuctions(auctions, type, message, client) {
+async function printAuctions(auctions, type, message, client, old) {
   try {
-    var auctionString = ""
+    var auctionStrings = []
+    var spts = []
+    var tokenStrs = []
     var spt, tokenStr
+    // if it's printing all auctions selling a specific token
     if (type === c.TOKEN) {
       spt = await utils.getSPT(auctions[0].token)
       tokenStr = await utils.getExpLink(auctions[0].token, c.TOKEN)
     }
 
-    for (var i = auctions.length - 1; i >= 0; i--) {
+    for (var i = 0; i < auctions.length; i++) {
       var a = auctions[i]
       var highestBid = getHighestBid(auctions[i].bids)
 
+      // if it's a print of all auctions
       if (type !== c.TOKEN) {
-        spt = await sjs.utils.fetchBackendAsset(config.blockURL, a.token)
-        tokenStr = await utils.getExpLink(a.token, c.TOKEN)
+        if (spts[a.token] === undefined) {
+          spt = await sjs.utils.fetchBackendAsset(config.blockURL, a.token)
+          spts[a.token] = spt
+        } else {
+          spt = spts[a.token]
+        }
+        if (tokenStrs[a.token] === undefined) {
+          tokenStr = await utils.getExpLink(a.token, c.TOKEN)
+          tokenStrs[a.token] = tokenStr
+        } else {
+          tokenStr = tokenStrs[a.token]
+        }
       }
 
       var highestBidAmount = new BigNumber(highestBid.amount)
@@ -129,14 +124,24 @@ async function printAuctions(auctions, type, message, client) {
       var bidWhole = utils.toWholeUnit(highestBidAmount, 8)
       var reserveWhole = utils.toWholeUnit(reserve, 8)
 
-      var timeLeft = utils.getRemainingTimeStr(a.endTime)
+      var timeDiff, endStr
+      if (old) {
+        timeDiff = utils.getTimeDiffStr(a.endTime, true)
+        timeDiff += " ago"
+        endStr = "Ended"
+      } else {
+        timeDiff = utils.getTimeDiffStr(a.endTime)
+        endStr = "Ends in:"
+      }
 
-      auctionString += `\n\nAuction ${a.auctionID} | Ends in: ${timeLeft}`
-      auctionString += `\n\t${tokenWhole} ${tokenStr} | Bid: ${bidWhole} ${config.ctick} | Reserve price: ${reserveWhole} ${config.ctick}`
+      auctionStrings.push("")
+      auctionStrings[i] += `\n\nAuction ${a.auctionID} | ${endStr} ${timeDiff}`
+      auctionStrings[i] += `\n\t${tokenWhole} ${tokenStr} | Bid: ${bidWhole} ${config.ctick} | Reserve price: ${reserveWhole} ${config.ctick}`
     }
 
-    if (auctionString.length !== 0) {
-      message.channel.send({embed: { color: c.SUCCESS_COL, description: auctionString }})
+    if (auctions.length > 0) {
+      var channel = client.channels.cache.get(config.auctionChannel)
+      pagination.createPagination(auctionStrings, "Auctions", channel)
     } else {
       message.channel.send({embed: { color: c.FAIL_COL, description: "No recent auctions to show." }})
     }
@@ -265,7 +270,7 @@ exports.createAuction = async function(message, args) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "Error finding token."}})
       }
 
-      var timeLeft = utils.getRemainingTimeStr(endDate)
+      var timeLeft = utils.getTimeDiffStr(endDate)
 
       message.channel.send({embed: { color: c.SUCCESS_COL,
         description: `\nAuction ID: ${auctionIndex} | ${tokenStr}` +
@@ -347,6 +352,11 @@ exports.cancelAuction = async function(message, args) {
 */
 exports.bid = async function(message, args) {
   try {
+    if (rateLimited[message.author.id]) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `I know it's exciting but you can only bid once every 5 seconds!`}})
+      return
+    }
+
     var myProfile = await db.getProfile(message.author.id)
 
     if (!myProfile) {
@@ -455,7 +465,7 @@ exports.bid = async function(message, args) {
 
       var tokenAmount = new BigNumber(auction.tokenAmount)
 
-      var timeLeft = utils.getRemainingTimeStr(auction.endTime)
+      var timeLeft = utils.getTimeDiffStr(auction.endTime)
 
       var auctionStr = `\nAuction ID: ${auction.auctionID} | ${tokenStr}` +
                     `\n<@${auction.seller}> auctioning ${utils.toWholeUnit(tokenAmount, token.decimals)} out of max ${token.maxSupply} in existence` +
@@ -468,6 +478,14 @@ exports.bid = async function(message, args) {
         let amountWhole = utils.toWholeUnit(new BigNumber(lastBid.amount), 8)
         auctionStr += `\nPrevious highest bid: ${amountWhole} ${config.ctick} by <@${lastBid.bidder}>`
       }
+
+      // rate limit the bidder so they can't spam bids
+      rateLimited[message.author.id] = true
+      setInterval(() => {
+        if (rateLimited[message.author.id] !== undefined) {
+          rateLimited[message.author.id] = undefined
+        }
+      }, 5000)
 
       message.channel.send({embed: { color: c.SUCCESS_COL,
         description: auctionStr
@@ -670,7 +688,7 @@ async function printAuction(auction, message, client) {
     var reserveWhole = utils.toWholeUnit(reserve, 8)
 
     var seller = (await client.users.fetch(auction.seller)).username
-    var timeLeft = utils.getRemainingTimeStr(auction.endTime)
+    var timeLeft = utils.getTimeDiffStr(auction.endTime)
     var endStr = `Ends in: ${timeLeft}`
     var winStr = `No winner`
     var auctioningStr = `is auctioning`
@@ -731,7 +749,7 @@ exports.showAuction = async function(message, args, client) {
 * args
 * 0 - tokenGUID
 */
-exports.findAuctions = async function(message, args, client) {
+exports.findAuctions = async function(message, args, client, old) {
   try {
     if (!args[0]) {
       message.channel.send({embed: { color: c.FAIL_COL, description: `Please enter a token to search for`}})
@@ -739,11 +757,15 @@ exports.findAuctions = async function(message, args, client) {
     }
 
     var token = await utils.getSPT(args[0])
-
-    var auctions = await db.getTokenAuctions(token.assetGuid, 5)
+    var auctions
+    if (old) {
+      auctions = await db.getOldTokenAuctions(token.assetGuid, config.maxItems)
+    } else {
+      auctions = await db.getTokenAuctions(token.assetGuid)
+    }
 
     if (auctions.length > 0) {
-      printAuctions(auctions, c.TOKEN, message, client)
+      printAuctions(auctions, c.TOKEN, message, client, old)
     } else {
       message.channel.send({embed: { color: c.FAIL_COL, description: `No auctions found with that token`}})
     }
