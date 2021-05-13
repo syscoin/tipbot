@@ -25,9 +25,9 @@ function arraySplit(list, howMany) {
 }
 
 /**
-* command: !create/edit [missionID] [amount] [symbol/guid] [timeAmount][s/m/h/d]
+* command: !create/edit [missionID] [amount] [symbol/guid] [timeAmount][s/m/h/d] <@suggester> <suggestAmount>
 * args
-* 0 - missionID, 1 - amount (whole), 2 - symbol/guid, 3 - timeAmount with s/m/h/d
+* 0 - missionID, 1 - amount (whole), 2 - symbol/guid, 3 - timeAmount with s/m/h/d, 5 - suggester payout
 */
 exports.createOrEditMission = async function(args, message, client, edit) {
   try {
@@ -113,9 +113,20 @@ exports.createOrEditMission = async function(args, message, client, edit) {
 
     var timeMilliSeconds = utils.convertToMillisecs(time.amount, time.unit)
 
-    // check to ensure the amount arguments are valid
     var amountStr = ["payout", "time amount"]
     var amounts = [payoutBig, timeMilliSeconds]
+
+    var suggester = message.mentions.users.first()
+    var suggesterID = null
+    var suggesterPayout = null
+    if (suggester) {
+      suggesterPayout = new BigNumber(args[5])
+      amountStr.push("suggester payout")
+      amounts.push(suggesterPayout)
+      suggesterID = suggester.id
+    }
+
+    // check to ensure the amount arguments are valid
     for (var i = 0; i < amounts.length; i++) {
       if (amounts[i].isNaN()) {
         message.channel.send({embed: { color: c.FAIL_COL, description: `The ${amountStr[i]} given is not a number.`}})
@@ -161,9 +172,9 @@ exports.createOrEditMission = async function(args, message, client, edit) {
     let satValue = utils.toSats(payoutBig, decimals);
     var missionNew
     if (!edit) {
-      missionNew = await db.createMission(missionName, message.author.id, satValue.toString(), gCurrency, endDate);
+      missionNew = await db.createMission(missionName, message.author.id, satValue.toString(), gCurrency, endDate, suggesterID, suggesterPayout);
     } else {
-      missionNew = await db.editMission(missionName, satValue.toString(), gCurrency, endDate);
+      missionNew = await db.editMission(missionName, satValue.toString(), gCurrency, endDate, suggesterID, suggesterPayout);
     }
 
     if (missionNew) {
@@ -395,7 +406,13 @@ exports.printMissionDetails = async function(args, message, client) {
 
     // get the time remaining until the mission ends
     var remainingTime = utils.getRemainingTimeStr(mission.endTime)
-    message.channel.send({ embed: { color: c.SUCCESS_COL, title: `${mission.missionID}`, description: `Ending in: ${remainingTime}\nTotal payout: ${payoutWhole} ${currencyStr}\n** ${missionProfiles.length} ** users in mission ** ${missionName} ** listed below: ` } });
+
+    if (mission.suggesterID) {
+      var suggesterPayoutWhole = utils.toWholeUnit(new BigNumber(mission.suggesterPayout), decimals)
+      message.channel.send({ embed: { color: c.SUCCESS_COL, title: `${mission.missionID}`, description: `Ending in: ${remainingTime}\nTotal payout: ${payoutWhole} ${currencyStr}\nSuggester <@${mission.suggesterID}> will receive ${suggesterPayoutWhole} ${currencyStr}\n** ${missionProfiles.length} ** users in mission ** ${missionName} ** listed below: ` } });
+    } else {
+      message.channel.send({ embed: { color: c.SUCCESS_COL, title: `${mission.missionID}`, description: `Ending in: ${remainingTime}\nTotal payout: ${payoutWhole} ${currencyStr}\n** ${missionProfiles.length} ** users in mission ** ${missionName} ** listed below: ` } });
+    }
 
     if (missionProfiles.length > 0) {
       //split into groups of 50 users for discord limit
@@ -531,6 +548,25 @@ exports.payMission = async function(args, message, client, automated) {
     }
     var totalTipWhole = utils.toWholeUnit(totalTip, decimals)
 
+    // pay the suggester their payout
+    var suggesterPayout = null
+    var suggesterPayoutWhole
+    var suggesterStr = ""
+    if (mission.suggesterID) {
+      var suggesterProfile = await db.getProfile(mission.suggesterID)
+      if (suggesterProfile) {
+        suggesterPayout = new BigNumber(mission.suggesterPayout)
+        suggesterPayoutWhole = utils.toWholeUnit(suggesterPayout, decimals)
+        var suggesterTipInfo = [1, suggesterPayoutWhole, tipStr];
+        tipSuccess = await tips.tipUser(suggesterTipInfo, myProfile, suggesterProfile, c.MISSION, client, null);
+
+        if (tipSuccess) {
+          suggesterStr = `Good suggestion! <@${mission.suggesterID}> paid ${mission.suggesterPayout} ${currencyStr} for suggesting the mission!`
+        }
+      }
+    }
+
+
     if (targets.length > 0) {
       if (tipInfo[2] == undefined) {
         tipInfo[2] = "SYS";
@@ -551,6 +587,9 @@ exports.payMission = async function(args, message, client, automated) {
       });
       var payoutChannel = client.channels.cache.get(config.missionPayOutsChannel);
       payoutChannel.send({ embed: { color: c.SUCCESS_COL, description: ":fireworks: :moneybag: Paid **" + dividedRewardWhole.toString() + " " + currencyStr + "** to " + targets.length + " users (Total = " + totalTipWhole.toString() + " " + currencyStr + ") in mission **" + missionName + "** listed below:" + line } });
+      if (mission.suggesterID && suggesterStr.length > 0) {
+        payoutChannel.send({ embed: { color: c.SUCCESS_COL, description: suggesterStr } });
+      }
     })
 
     exports.archiveMission(args, message, client, true);

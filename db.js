@@ -179,38 +179,76 @@ exports.getBalances = function(discordID) {
 }
 
 // creates a new mission in the db
-exports.createMission = function(id, creator, payout, currency, endDate) {
-  try {
-    return Mission.create({
-      missionID: id,
-      creator: creator,
-      reward: payout.toString(),
-      currencyID: currency.toString(),
-      profiles: new Array(),
-      dateCreated: new Date(),
-      endTime: endDate,
-      active: true
-    });
-  } catch (error) {
-    console.log(error)
-    return null
+exports.createMission = function(id, creator, payout, currency, endDate, suggesterID, suggesterPayout) {
+  if (suggesterID && suggesterPayout) {
+    try {
+      return Mission.create({
+        missionID: id,
+        creator: creator,
+        reward: payout.toString(),
+        suggesterID: suggesterID,
+        suggesterPayout: suggesterPayout,
+        currencyID: currency.toString(),
+        profiles: new Array(),
+        dateCreated: new Date(),
+        endTime: endDate,
+        active: true
+      });
+    } catch (error) {
+      console.log(error)
+      return null
+    }
+  } else {
+    try {
+      return Mission.create({
+        missionID: id,
+        creator: creator,
+        reward: payout.toString(),
+        currencyID: currency.toString(),
+        profiles: new Array(),
+        dateCreated: new Date(),
+        endTime: endDate,
+        active: true
+      });
+    } catch (error) {
+      console.log(error)
+      return null
+    }
   }
 }
 
 // edits a mission in the db
-exports.editMission = function(id, payout, currency, endDate) {
-  try {
-    return Mission.findOneAndUpdate({ missionID: id },
-      {
-        reward: payout.toString(),
-        currencyID: currency.toString(),
-        endTime: endDate,
-        active: true
-      },
-      { new: true });
-  } catch (error) {
-    console.log(error)
-    return null
+exports.editMission = function(id, payout, currency, endDate, suggesterID, suggesterPayout) {
+  if (suggesterID && suggesterPayout) {
+    try {
+      return Mission.findOneAndUpdate({ missionID: id },
+        {
+          reward: payout.toString(),
+          suggesterID: suggesterID,
+          suggesterPayout: suggesterPayout,
+          currencyID: currency.toString(),
+          endTime: endDate,
+          active: true
+        },
+        { new: true });
+    } catch (error) {
+      console.log(error)
+      return null
+    }
+  } else {
+    try {
+      return Mission.findOneAndUpdate({ missionID: id },
+        {
+          reward: payout.toString(),
+          currencyID: currency.toString(),
+          endTime: endDate,
+          active: true
+        },
+        { new: true });
+    } catch (error) {
+      console.log(error)
+      return null
+    }
   }
 }
 
