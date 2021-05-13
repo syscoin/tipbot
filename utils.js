@@ -241,26 +241,39 @@ exports.getRemainingTime = function(endDate) {
   return end.diff(now, ['days', 'hours', 'minutes', 'seconds'])
 }
 
+// returns the remaining time between now and the end date
+exports.getElapsedTime = function(endDate) {
+  var now = lux.DateTime.now()
+  var end = lux.DateTime.fromISO(endDate.toISOString())
+
+  return now.diff(end, ['days', 'hours', 'minutes', 'seconds'])
+}
+
 // returns a string with days/hours/minutes/seconds remaining until the endDate
-exports.getRemainingTimeStr = function(endDate) {
-  var endsIn = exports.getRemainingTime(endDate)
+exports.getTimeDiffStr = function(endDate, past) {
+  var diff
+  if (past) {
+    diff = exports.getElapsedTime(endDate)
+  } else {
+    diff = exports.getRemainingTime(endDate)
+  }
 
   var timeLeft = ""
 
-  if (endsIn.values.days > 0) {
-    timeLeft += `${endsIn.values.days} day(s), `
+  if (diff.values.days > 0) {
+    timeLeft += `${diff.values.days} day(s), `
   }
 
-  if (endsIn.values.hours > 0) {
-    timeLeft += `${endsIn.values.hours} hour(s), `
+  if (diff.values.hours > 0) {
+    timeLeft += `${diff.values.hours} hour(s), `
   }
 
-  if (endsIn.values.minutes > 0) {
-    timeLeft += `${endsIn.values.minutes} minute(s), `
+  if (diff.values.minutes > 0) {
+    timeLeft += `${diff.values.minutes} minute(s), `
   }
 
-  if (endsIn.values.seconds > 0) {
-    timeLeft += `${endsIn.values.seconds.toFixed(0)} second(s).`
+  if (diff.values.seconds > 0) {
+    timeLeft += `${diff.values.seconds.toFixed(0)} second(s).`
   }
 
   return timeLeft
