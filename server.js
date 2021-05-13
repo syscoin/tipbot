@@ -435,8 +435,27 @@ switch (command) {
 
                user.send({embed: { color: c.SUCCESS_COL, description: `<\@${message.author.id}> has:\n ${balString.toLocaleString()}`}})
                if (balWasUpdated) {
-                 user.send({embed: { color: c.SUCCESS_COL, description: `A new deposit address has been created for you, do NOT send any more funds to the previous deposit address.\n\n` +
-                            `:warning: IMPORTANT: Make sure that all transactions sent to this new deposit address have been confirmed at least once before using the !balance command, otherwise your funds might be lost. :warning:\n\n${newAddress}`}})
+
+                 let desc = `A new deposit address has been created for you, do NOT send any more funds to the previous deposit address.\n\n` +
+                            `:warning: IMPORTANT: Make sure that all transactions sent to this new deposit address have been confirmed at least once before using the !balance command, otherwise your funds might be lost. :warning:\n\n${newAddress}`
+                 try {
+                   var qrPath = await qr.getQR(message.author.id)
+                   var attachment = new Discord.MessageAttachment(qrPath)
+                 } catch (error) {
+                   console.log("Error getting qrpath")
+                   console.log(error)
+                 }
+
+                 var embed = new Discord.MessageEmbed()
+                     .setColor(c.SUCCESS_COL)
+                     .setDescription(desc)
+
+                 if (qrPath) {
+                   embed.attachFiles(attachment)
+                         .setImage(`attachment://${message.author.id}.png`)
+                 }
+
+                 user.send(embed)
                }
              }
            makeBalTransferPrivate()
