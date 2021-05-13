@@ -116,6 +116,12 @@ process.on('SIGINT', function() {
 
 client.on('ready', () => {
     console.log('Up and running!')
+
+    // set name if not properly set
+    if (client.user.username !== config.botname) {
+      client.user.setUsername(config.botname)
+    }
+
     // set status
     client.user.setActivity(`#tips - !help `, { type: 'WATCHING' })
 })
