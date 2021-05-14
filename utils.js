@@ -113,6 +113,7 @@ exports.getCurrencyStr = async function(tokenStr) {
 
 // converts from the given time unit to milliseconds
 exports.convertToMillisecs = function(time, unit) {
+  unit = unit.toUpperCase()
   switch (unit) {
     case "D":
       time = time.times(24)
@@ -241,7 +242,7 @@ exports.getRemainingTime = function(endDate) {
   return end.diff(now, ['days', 'hours', 'minutes', 'seconds'])
 }
 
-// returns the remaining time between now and the end date
+// returns the elapsed time between the past date and now
 exports.getElapsedTime = function(endDate) {
   var now = lux.DateTime.now()
   var end = lux.DateTime.fromISO(endDate.toISOString())
@@ -273,8 +274,25 @@ exports.getTimeDiffStr = function(endDate, past) {
   }
 
   if (diff.values.seconds > 0) {
-    timeLeft += `${diff.values.seconds.toFixed(0)} second(s).`
+    timeLeft += `${diff.values.seconds.toFixed(0)} second(s)`
   }
 
   return timeLeft
+}
+
+exports.createNFTEmbed = async function(guid, color, desc, isThumbnail) {
+  var embed = new Discord.MessageEmbed()
+      .setColor(color)
+      .setDescription(desc)
+
+  var dbSPT = await db.getSPT(guid)
+  if (dbSPT && dbSPT.linkToNFT) {
+    if (isThumbnail) {
+      embed.setThumbnail(dbSPT.linkToNFT)
+    } else {
+      embed.setImage(dbSPT.linkToNFT)
+    }
+  }
+
+  return embed
 }

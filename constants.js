@@ -109,7 +109,7 @@ function getHelpCommands(parm) {
 
       **\`${prefix}giveaway [timeAmount][s/m] [winnersAmount][w] [payout] [symbol/guid]\`** Creates a giveaway with the specified parameters.
 
-      **\`${prefix}verifytoken [guid]\`** Verify a SPT so users can refer to it using its symbol rather than guid.
+      **\`${prefix}verifytoken [guid] [chosenSymbol] <linkToNFT>\`** Verify a SPT so users can refer to it using the chosen symbol rather than guid. If a link to the NFT is included, the NFT will be embedded within auctions/trades/giveaways.
 
       `;
     break

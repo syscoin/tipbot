@@ -162,6 +162,7 @@ client.on('message', async message => {
              try {
                let missionUpdated = await db.addProfileToMission(message.author.id, missionName[0])
                utils.isSuccessMsgReact(true, message)
+               console.log(`Added ${message.author.id} to mission ${missionName}`)
              } catch (error) {
                utils.isSuccessMsgReact(false, message)
                console.log(`Error adding ${message.author.id} to mission ${missionName}`)
@@ -395,7 +396,9 @@ switch (command) {
                  }
                }
 
-               let log = await db.createLog(message.author.id, actionStr, [], 0)
+               if (actionStr.length > 0) {
+                 let log = await db.createLog(message.author.id, actionStr, [], 0)
+               }
 
                let profileBals = await db.getBalances(message.author.id)
                let sysBal = await db.getBalance(message.author.id, "SYS")
@@ -509,28 +512,42 @@ switch (command) {
         return
       }
 
-      if (args[0] != undefined) {
-        let asset = await sjs.utils.fetchBackendAsset(backendURL, args[0])
-        if (asset.assetGuid == undefined) {
+      let token
+      if (args[0] !== undefined) {
+        token = await sjs.utils.fetchBackendAsset(backendURL, args[0])
+        if (token.assetGuid == undefined) {
           message.channel.send({embed: { color: c.FAIL_COL, description: "Cannot find a SPT with the given GUID. Please ensure it's correct."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
           return
         }
-        let symbol = base64.decode(asset.symbol).toUpperCase()
-        let sptExists = await db.getSPT(symbol)
 
-        if (sptExists) {
-          message.channel.send({embed: { color: c.FAIL_COL, description: "Token symbol already in use."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
+        let symbol
+        if (args[1].length > 0) {
+          symbol = args[1].toUpperCase()
+        } else {
+          symbol = base64.decode(token.symbol).toUpperCase()
+        }
+        let sptExists = await db.getSPT(symbol)
+        let guidExists = await db.getSPT(token.assetGuid)
+
+        if (sptExists || guidExists) {
+          message.channel.send({embed: { color: c.FAIL_COL, description: "Token symbol/guid already in use."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
           return
         }
 
-        let spt = await db.createSPT(symbol, args[0])
+        let spt
+        if (args[2] !== undefined) {
+          spt = await db.createSPT(symbol, token.assetGuid, args[2])
+        } else {
+          spt = await db.createSPT(symbol, token.assetGuid, null)
+        }
+
         if (spt) {
           message.channel.send({embed: { color: c.SUCCESS_COL, description: `Symbol ${symbol} has now been linked to GUID ${args[0]}`}})
         } else {
-          message.channel.send({embed: { color: c.FAIL_COL, description: "Error verifying token."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
+          message.channel.send({embed: { color: c.FAIL_COL, description: "Error verifying token and adding to database."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         }
       } else {
-        message.channel.send({embed: { color: c.FAIL_COL, description: `Usage: ${prefix}verifytoken [guid]`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
+        message.channel.send({embed: { color: c.FAIL_COL, description: `${prefix}${commandUsage.verifyToken}`}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
       }
     } catch (error) {
       console.log(error)
@@ -641,7 +658,6 @@ switch (command) {
             message.author.send({embed: { color: c.FAIL_COL, description: `:warning: The user you are attempting to restrict is not a registered user.` }}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
           }
         });
-
       }
     } catch (error) {
       console.log(error)

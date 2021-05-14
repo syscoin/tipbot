@@ -30,7 +30,7 @@ async function printTrades(trades, message, client) {
     var tokenStrArr = []
     var tokenArr = []
     var tradeStrings = []
-    console.log(trades.length)
+
     for (var i = 0; i < trades.length; i++) {
       if (userArr[trades[i].userA] === undefined) {
         userArr[trades[i].userA] = (await client.users.fetch(trades[i].userA)).username
@@ -96,7 +96,6 @@ async function printTrades(trades, message, client) {
     message.channel.send({embed: { color: c.FAIL_COL, description: "Error printing trades." }})
   }
 }
-
 
 // cancel the trade with the given tradeID
 /**
@@ -199,6 +198,14 @@ exports.createTrade = async function(message, args) {
         return
       }
 
+      if (config.onlyVerifiedSPTs) {
+        var dbSPT = await db.getSPT(tokenArgs[i])
+        if (!dbSPT) {
+          message.channel.send({embed: { color: c.FAIL_COL, description: `Only verified Syscoin Platform Tokens (SPTs) are allowed at this time. Please contact an admin if you would like the token ${tokenArgs[i]} to be verified.`}})
+          return
+        }
+      }
+
       var tokenAmount = new BigNumber(amountArgs[i])
 
       if (tokenAmount.isNaN()) {
@@ -250,6 +257,7 @@ exports.createTrade = async function(message, args) {
     var tradeIndex = ls.get("tradeIndex")
     if (!tradeIndex) {
       ls.set("tradeIndex", 0)
+      tradeIndex = 0
     } else {
       tradeIndex = Number(tradeIndex) + 1
       ls.set("tradeIndex", tradeIndex)
@@ -272,12 +280,13 @@ exports.createTrade = async function(message, args) {
         }
       }
 
-      message.channel.send({embed: { color: c.SUCCESS_COL,
-        description:  `Trade ID: ${tradeIndex}.` +
-                      `\nTrade between: <@${message.author.id}> and <@${userArgs[1]}>` +
-                      `\nTrading: ${amountArgs[0]} ${tokenStr[0]} for ${amountArgs[1]} ${tokenStr[1]}` +
-                      `\nTrade is open for ${config.tradeTime} minutes. After this time it will be removed.`
-      }})
+      var desc = `Trade ID: ${tradeIndex}.` +
+                  `\nTrade between: <@${message.author.id}> and <@${userArgs[1]}>` +
+                  `\nTrading: ${amountArgs[0]} ${tokenStr[0]} for ${amountArgs[1]} ${tokenStr[1]}` +
+                  `\nTrade is open for ${config.tradeTime} minutes. After this time it will be removed.`
+
+      var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, true)
+      message.channel.send(embed)
     } else {
       // if trade isn't created for whatever reason then remove locked balance
       var revertedBalance = await db.editBalanceLocked(message.author.id, cryptos[0], currentLocked)

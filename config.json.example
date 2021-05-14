@@ -14,14 +14,16 @@
   "giveawayChannel": "",
   "tradeChannel": "",
   "auctionChannel": "",
-  "testnet": false,
   "tipChannel": "",
+  "onlyVerifiedSPTs": false,
   "tipMin": 0.0001,
   "tipMaxDecimals": 4,
   "tradeTime": 5,
   "maxAuctionTimeDays": 5,
+  "maxGiveawayTimeMins" : 60,
   "itemsPerPage": 5,
   "maxItems": 15,
+  "testnet": false,
   "blockURL": "",
   "mnemonic": ""
 }

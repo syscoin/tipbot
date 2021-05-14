@@ -363,11 +363,12 @@ exports.archiveMission = function(id) {
 
 // adds a new "verified" SPT to the db, this links to the guid
 // for using with the fetchBackednAsset function
-exports.createSPT = function(symbol, guid) {
+exports.createSPT = function(symbol, guid, link) {
   try {
     return SPT.create({
-      symbol: symbol,
-      guid: guid
+      symbol: symbol.toUpperCase(),
+      guid: guid,
+      linkToNFT: link
     });
   } catch (error) {
     console.log(error)
@@ -375,10 +376,10 @@ exports.createSPT = function(symbol, guid) {
   }
 }
 
-// finds a SPT with the given ticker
-exports.getSPT = function (ticker) {
+// finds a SPT with the given identifier, can be either symbol or guid
+exports.getSPT = function (identifier) {
   try {
-    return SPT.findOne({ symbol: ticker });
+    return SPT.findOne({ $or: [{symbol: identifier.toUpperCase()}, {guid: identifier}] });
   } catch (error) {
     console.log(error)
     return null
@@ -402,16 +403,40 @@ exports.createLog = function(discordID, action, targets, value) {
 }
 
 // creates a new giveaway in the db
-exports.createGiveaway = function(id, payout) {
+exports.createGiveaway = function(id, payout, currencyID, endTime) {
   try {
     return Giveaway.create({
       giveawayID: id,
       reward: payout,
+      currencyID: currencyID,
       participants: new Array(),
       winners: new Array(),
       dateCreated: new Date(),
+      endTime: endTime,
       active: true
     });
+  } catch (error) {
+    console.log(error)
+    return null
+  }
+}
+
+// finds and returns the giveaway with the given id
+exports.getGiveaway = function(id) {
+  try {
+    return Giveaway.findOne({ giveawayID: id });
+  } catch (error) {
+    console.log(error)
+    return null
+  }
+}
+
+// finds and ends the giveaway with the given id
+exports.endGiveaway = function(id) {
+  try {
+    return Giveaway.findOneAndUpdate({ giveawayID: id },
+            { active: false },
+            { new: true});
   } catch (error) {
     console.log(error)
     return null

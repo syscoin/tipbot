@@ -7,6 +7,7 @@ var GiveawaySchema = new mongoose.Schema({
   participants: [{ type: ObjectId, ref: 'Profile' }],
   winners: [{ type: ObjectId, ref: 'Profile' }],
   dateCreated: { type: Date },
+  endTime: { type: Date },
   active: { type: Boolean }
 });
 

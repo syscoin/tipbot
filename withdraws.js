@@ -191,8 +191,16 @@ exports.withdraw = async function(args, message, client, signer, sysjs) {
           let link = await utils.getExpLink(txResult.txID, c.TX, "Click here to see the transaction.")
           user.send({embed: { color: c.SUCCESS_COL, description: `Your withdrawal was successful!\n ${link}`}})
 
+          var sendArr = []
+          sendArr.push(sendTo)
           var actionStr = `Withdraw: ${withdrawWhole.toString()} ${currencyID} | txid: ${txResult.txID}`
-          let log = await db.createLog(message.author.id, actionStr, [sendTo], utils.toWholeUnit(withdrawSat, decimals).toString())
+          try {
+            let log = await db.createLog(message.author.id, actionStr, sendArr, withdrawSat.toString())
+          } catch (error) {
+            console.log("Error creating withdraw log")
+            console.log(error)
+          }
+          console.log(actionStr)
         } else {
           user.send({embed: { color: c.FAIL_COL, description: `Your withdrawal failed. Please contact a member of the Syscoin Team.`}})
         }

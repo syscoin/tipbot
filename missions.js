@@ -140,7 +140,7 @@ exports.createOrEditMission = async function(args, message, client, edit) {
     }
 
     // check to ensure the time isn't longer than it can be
-    if (timeMilliSeconds.gt(utils.convertToMillisecs(config.maxAuctionTimeDays))) {
+    if (timeMilliSeconds.gt(utils.convertToMillisecs(new BigNumber(config.maxAuctionTimeDays), "d"))) {
       message.channel.send({embed: { color: c.FAIL_COL, description: `The max auction time is ${config.maxAuctionTimeDays} day(s). Try again with a lower auction time.`}})
       return
     }
@@ -185,7 +185,7 @@ exports.createOrEditMission = async function(args, message, client, edit) {
     }
   } catch (error) {
     console.log(error);
-    message.channel.send({ embed: { color: c.FAIL_COL, description: "Error creating mission." } });
+    message.channel.send({ embed: { color: c.FAIL_COL, description: "Error creating/editing mission." } });
   }
 }
 
@@ -463,9 +463,13 @@ exports.payMission = async function(args, message, client, automated) {
 
     var myProfile = await db.getProfile(mission.creator);
     var myBalance = await db.getBalance(mission.creator, mission.currencyID);
+    var missionTotalReward = new BigNumber(mission.reward)
+    if (mission.suggesterPayout) {
+      missionTotalReward = missionTotalReward.plus(mission.suggesterPayout)
+    }
     // make sure mission payer has the funds to pay all the users
-    if (!utils.hasEnoughBalance(myBalance, mission.reward)) {
-      message.channel.send({ embed: { color: c.FAIL_COL, description: "Sorry, you don't have enough funds to pay the mission!" } });
+    if (!utils.hasEnoughBalance(myBalance, missionTotalReward.toString())) {
+      message.channel.send({ embed: { color: c.FAIL_COL, description: `Sorry, you don't have enough funds to pay the mission: ${mission.missionID}!` } });
       return;
     }
 

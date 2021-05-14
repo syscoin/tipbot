@@ -196,7 +196,7 @@ exports.createAuction = async function(message, args) {
       }
     }
 
-    if (timeMilliSeconds.gt(utils.convertToMillisecs(config.maxAuctionTimeDays))) {
+    if (timeMilliSeconds.gt(utils.convertToMillisecs(new BigNumber(config.maxAuctionTimeDays), "d"))) {
       message.channel.send({embed: { color: c.FAIL_COL, description: `The max auction time is ${config.maxAuctionTimeDays} day(s). Try again with a lower auction time.`}})
       return
     }
@@ -211,6 +211,14 @@ exports.createAuction = async function(message, args) {
     if (!token) {
       message.channel.send({embed: { color: c.FAIL_COL, description: `Couldn't find the token: ${args[1]}. Please ensure you entered the symbol/GUID correctly.`}})
       return
+    }
+
+    if (config.onlyVerifiedSPTs) {
+      var dbSPT = await db.getSPT(args[1])
+      if (!dbSPT) {
+        message.channel.send({embed: { color: c.FAIL_COL, description: `Only verified Syscoin Platform Tokens (SPTs) are allowed at this time. Please contact an admin if you would like the token ${args[1]} to be verified.`}})
+        return
+      }
     }
 
     if (utils.decimalCount(args[1].toString()) > config.tipMaxDecimals) {
@@ -272,13 +280,15 @@ exports.createAuction = async function(message, args) {
 
       var timeLeft = utils.getTimeDiffStr(endDate)
 
-      message.channel.send({embed: { color: c.SUCCESS_COL,
-        description: `\nAuction ID: ${auctionIndex} | ${tokenStr}` +
-                      `\n<@${message.author.id}> is auctioning ${amounts[0]} out of max ${token.maxSupply} in existence` +
-                      `\nReserve price: ${amounts[2]} ${config.ctick}` +
-                      `\nEnds in: ${timeLeft}` +
-                      `\nAuction successfully created. Time to get bidding!`
-      }})
+      var desc = `\nAuction ID: ${auctionIndex} | ${tokenStr}` +
+              `\n<@${message.author.id}> is auctioning ${amounts[0]} out of max ${token.maxSupply} in existence` +
+              `\nReserve price: ${amounts[2]} ${config.ctick}` +
+              `\nEnds in: ${timeLeft}` +
+              `\nAuction successfully created. Time to get bidding!`
+
+      var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc)
+
+      message.channel.send(embed)
     } else {
       // if auction isn't created for whatever reason then remove locked balance
       var revertedBalance = await db.editBalanceLocked(message.author.id, token.assetGuid, currentLocked)
@@ -479,6 +489,8 @@ exports.bid = async function(message, args) {
         auctionStr += `\nPrevious highest bid: ${amountWhole} ${config.ctick} by <@${lastBid.bidder}>`
       }
 
+      var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, auctionStr, true)
+
       // rate limit the bidder so they can't spam bids
       rateLimited[message.author.id] = true
       setInterval(() => {
@@ -487,9 +499,7 @@ exports.bid = async function(message, args) {
         }
       }, 5000)
 
-      message.channel.send({embed: { color: c.SUCCESS_COL,
-        description: auctionStr
-      }})
+      message.channel.send(embed)
     } else {
       message.channel.send({embed: { color: c.FAIL_COL, description: `Error updating the auction ${auction.auctionID}.`}})
     }
@@ -556,7 +566,6 @@ exports.endAuction = async function(auctionID, client) {
     }
 
     var token = await sjs.utils.fetchBackendAsset(config.blockURL, auction.token)
-
     var tokenStr = await utils.getExpLink(auction.token, c.TOKEN)
     var tokenAmount = new BigNumber(auction.tokenAmount)
     var tokenWhole = utils.toWholeUnit(tokenAmount, token.decimals)
@@ -584,13 +593,14 @@ exports.endAuction = async function(auctionID, client) {
           await utils.unlockAmount(config.ctick, highestBid.bidder, highestBid.amount)
         }
 
-        channel.send({embed: { color: c.FAIL_COL,
-        description: `\nAuction ${auction.auctionID} ended | ${tokenStr}` +
-                      `\n<@${auction.seller}> auctioning ${tokenWhole} out of max ${token.maxSupply} in existence` +
-                      `\nReserve price: ${reserveWhole} ${config.ctick} | Met? ${reserveMet}` +
-                      `\n${bidStr}` +
-                      `\n${winStr}`
-        }})
+        var desc = `\nAuction ${auction.auctionID} ended | ${tokenStr}` +
+                    `\n<@${auction.seller}> auctioning ${tokenWhole} out of max ${token.maxSupply} in existence` +
+                    `\nReserve price: ${reserveWhole} ${config.ctick} | Met? ${reserveMet}` +
+                    `\n${bidStr}` +
+                    `\n${winStr}`
+
+        var embed = await utils.createNFTEmbed(token.assetGuid, c.FAIL_COL, desc, true)
+        channel.send(embed)
       } else {
         channel.send({embed: { color: c.FAIL_COL, description: `Error ending the auction ${auction.auctionID}.`}})
       }
@@ -633,13 +643,14 @@ exports.endAuction = async function(auctionID, client) {
         // unlock highest bidder amount
         await utils.unlockAmount(config.ctick, highestBid.bidder, highestBid.amount)
 
-        channel.send({embed: { color: c.SUCCESS_COL,
-        description: `\nAuction ${auction.auctionID} ended! | ${tokenStr}` +
+        var desc = `\nAuction ${auction.auctionID} ended! | ${tokenStr}` +
                       `\n<@${auction.seller}> auctioning ${tokenWhole} out of max ${token.maxSupply} in existence` +
                       `\nReserve price: ${reserveWhole} ${config.ctick} | Met? ${reserveMet}` +
                       `\n:tada: <@${completedAuction.winner}> has won with a bid of ${bidWhole} ${config.ctick}! :tada:` +
                       `\nCongratulations!`
-        }})
+
+        var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, true)
+        channel.send(embed)
       }
     } else {
       channel.send({embed: { color: c.FAIL_COL, description: `Error completing the auction ${auction.auctionID}. First send failed.`}})
@@ -709,13 +720,14 @@ async function printAuction(auction, message, client) {
       }
     }
 
-    message.channel.send({embed: { color: c.SUCCESS_COL,
-      description: `\nAuction ID: ${auction.auctionID} | ${tokenStr}` +
+    var desc = `\nAuction ID: ${auction.auctionID} | ${tokenStr}` +
                     `\n${seller} ${auctioningStr} ${auction.tokenAmount} out of max ${token.maxSupply} in existence` +
                     `\nReserve price: ${reserveWhole} ${config.ctick} | Met? ${reserveMet}` +
                     `\n${endStr}` +
                     `\n${winStr}`
-    }})
+
+    var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, true)
+    message.channel.send(embed)
   } catch (error) {
     console.log(error)
   }

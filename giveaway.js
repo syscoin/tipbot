@@ -9,69 +9,54 @@ const db = require('./db.js')
 const tips = require('./tips.js')
 const utils = require('./utils.js')
 
-const sjs = require('syscoinjs-lib')
-const backendURL = 'https://sys-explorer.tk/' // if using localhost you don't need SSL see use 'systemctl edit --full blockbook-syscoin.service' to remove SSL from blockbook
 const base64 = require('base-64');
 const BigNumber = require('bignumber.js')
 BigNumber.config({ DECIMAL_PLACES: 8 })
 BigNumber.config({ EXPONENTIAL_AT: 1e+9 })
 
+const Discord = require('discord.js')
+
 const EMOJI = '⚡'
-const SYS_EMOJI = ':syscoin:'
-const REACT_EMOJI = '👍'
+const REACT_EMOJI = '🤘'
+
+var LocalStorage = require('node-localstorage').LocalStorage
+localStorage = new LocalStorage('./ls')
+var ls = require("./ls")
 
 var client;
 const { ReactionCollector } = require('discord.js')
 
-function formatTime(time) {
-    var minutes = "", seconds, verb;
-    if (time >= 60) {
-        minutes = Math.floor(time/60);
-        if (minutes !== 1) {
-            minutes = minutes + " minutes, ";
-        } else {
-            minutes = minutes + " minute, ";
-        }
-    }
+async function formatTime(id) {
+  var giveaway = await db.getGiveaway(id)
 
-    seconds = time % 60;
-    if (seconds !== 1) {
-        seconds = seconds + " seconds";
-        verb = "are";
-    } else {
-        seconds = seconds + "second";
-        verb = "is";
-    }
-
-    return "**" + minutes + seconds + "** " + verb + " left.";
+  return `${utils.getTimeDiffStr(new Date(giveaway.endTime))} remaining`
 }
 
 function formatWinners(winners) {
     return "**" + winners + "** winner" + ((winners !== 1) ? "s" : "") + ".";
 }
 
-//Creates a message to send.
-function createMessage(time, winners, amount, symbol) {
+//Creates a message description to send.
+async function createDescription(time, winners, amount, symbol, giveawayID) {
     return `
-${EMOJI} ${SYS_EMOJI} **${symbol} GIVEAWAY!** ${SYS_EMOJI} ${EMOJI}
+${EMOJI} **${symbol} GIVEAWAY!** ${EMOJI}
 
 
-${formatTime(time)}
+${(await formatTime(giveawayID))}
 ${formatWinners(winners)}
 **${amount.toString()}** ${symbol} each.
-    `;
+\r\n\r\nReact with ${REACT_EMOJI} to enter!`;
 }
 
-var reactWith = "\r\n\r\nReact with " + REACT_EMOJI + " to enter!";
-
 //Updates a message.
-async function updateMessage(message, time, winners, amount, symbol) {
+async function updateMessage(message, time, winners, amount, symbol, link, giveawayID) {
   try {
     await message.edit("", {
         embed: {
             description:
-                createMessage(time, winners, amount, symbol) +
-                reactWith
+              await createDescription(time, winners, amount, symbol, giveawayID),
+            image: { url: link },
+            color: c.SUCCESS_COL
         }
     });
   } catch (error) {
@@ -80,12 +65,13 @@ async function updateMessage(message, time, winners, amount, symbol) {
 }
 
 //End a giveaway.
-async function endMessage(message, whoWon) {
+async function endMessage(message, whoWon, link) {
   try {
     if (whoWon == false) {
         await message.edit("", {
             embed: {
-                description: "This giveaway has ended! Sadly, no one entered."
+                description: "This giveaway has ended! Sadly, no one entered.",
+                color: c.FAIL_COL
             }
         });
 
@@ -96,7 +82,9 @@ async function endMessage(message, whoWon) {
         embed: {
             description:
                 "This giveaway has ended! The winners are:\r\n<@" +
-                whoWon.join(">\r\n<@") + ">"
+                whoWon.join(">\r\n<@") + ">",
+            image: { url: link },
+            color: c.SUCCESS_COL
         }
     });
   } catch (error) {
@@ -119,12 +107,6 @@ exports.createGiveaway = async function(msg, args, discordClient) {
         return;
     }
 
-    //Extract the arguments.
-    var time = args[0];
-    time = {
-        time: parseInt(time.substr(0, time.length - 1)),
-        unit: time.substr(time.length - 1, time.length)
-    };
     var winners = args[1];
     winners = {
         quantity: parseInt(winners.substr(0, winners.length - 1)),
@@ -149,6 +131,10 @@ exports.createGiveaway = async function(msg, args, discordClient) {
         gCurrency = token.assetGuid
         decimals = token.decimals
         currencyStr = await utils.getExpLink(token.assetGuid, c.TOKEN)
+        if (!currencyStr) {
+          msg.channel.send("Error getting token link")
+          return
+        }
       } else {
         gCurrency = "SYS"
         currencyStr = "SYS"
@@ -160,16 +146,35 @@ exports.createGiveaway = async function(msg, args, discordClient) {
         msg.reply("Your time is missing a proper suffix of either \"s\" or \"m\".");
         return;
     }
-    if (Number.isNaN(time.time) ||
-        time.time <= 0) {
-      msg.reply("Your time is not a positive number.");
-      return;
+
+    var time = {
+        amount: new BigNumber(parseInt(args[0].substr(0, args[0].length - 1))),
+        unit: args[0].substr(args[0].length - 1, args[0].length).toUpperCase()
     }
-    if (time.unit !== "s" &&
-        time.unit !== "m") {
+
+    if (time.unit !== "S" &&
+        time.unit !== "M") {
       msg.reply("Your time isn't in seconds or minutes! Please use one or the other.");
       return;
     }
+
+    var timeMilliSeconds = utils.convertToMillisecs(time.amount, time.unit)
+
+    if (timeMilliSeconds.gt(utils.convertToMillisecs(new BigNumber(config.maxGiveawayTimeMins), "m"))) {
+      msg.channel.send({embed: { color: c.FAIL_COL, description: `The max auction time is ${config.maxAuctionTimeDays} day(s). Try again with a lower auction time.`}})
+      return
+    }
+
+    if (timeMilliSeconds.isNaN()) {
+      msg.channel.send({embed: { color: c.FAIL_COL, description: `The time amount given is not a number.`}})
+      return
+    }
+
+    if (!timeMilliSeconds.gt(0)) {
+      msg.channel.send({embed: { color: c.FAIL_COL, description: `The time amount given isn't more than 0.`}})
+      return
+    }
+
     //Calculate the actual time of the giveaway.
     time = ((time.unit === "m") ? 60 : 1) * time.time;
 
@@ -197,7 +202,7 @@ exports.createGiveaway = async function(msg, args, discordClient) {
         (amount.isNaN()) ||
         (amount.lte(0))
     ) {
-        msg.reply("Your amount that each winner will win is not a valid positive number.");
+        msg.reply("The amount that each winner will win is not a valid positive number.");
         return;
     }
     // make sure the tip amount can't have a higher precision than is supported
@@ -231,14 +236,39 @@ exports.createGiveaway = async function(msg, args, discordClient) {
       return;
     }
 
-    //Send the message.
-    var giveaway = await msg.channel.send({
-        embed: {
-            description:
-                createMessage(time, winners, amount, currencyStr) +
-                reactWith
-        }
-    });
+    var giveawayIndex = ls.get("giveawayIndex")
+    if (!giveawayIndex) {
+      ls.set("giveawayIndex", 0)
+      giveawayIndex = 0
+    } else {
+      giveawayIndex = Number(giveawayIndex) + 1
+      ls.set("giveawayIndex", giveawayIndex)
+    }
+    console.log("Giveaway index: " + ls.get("giveawayIndex"))
+
+    var now = Date.now()
+    var endDate = new Date(timeMilliSeconds.plus(now).toNumber())
+
+    var dbGiveaway = await db.createGiveaway(giveawayIndex, utils.toSats(amount, decimals), gCurrency, endDate)
+
+    if (!dbGiveaway) {
+      msg.channel.send({embed: {description: `Error creating giveaway in the database.`}})
+      return
+    }
+
+    var desc = await createDescription(time, winners, amount, currencyStr, dbGiveaway.giveawayID)
+
+    var embed = new Discord.MessageEmbed()
+        .setColor(c.SUCCESS_COL)
+        .setDescription(desc)
+
+    var dbSPT = await db.getSPT(token.assetGuid)
+    if (dbSPT && dbSPT.linkToNFT) {
+      embed.setImage(dbSPT.linkToNFT)
+    }
+
+    // send message
+    var giveaway = await msg.channel.send(embed)
 
     //Create the var of who won.
     var whoWon = [];
@@ -254,22 +284,24 @@ exports.createGiveaway = async function(msg, args, discordClient) {
 
     //Function to update the time.
     async function updateTime() {
-        //Subtract 10 seconds from the time.
-        time -= 10;
+        let diff = endDate.getTime() - Date.now()
+
+        var checkTime
         var nextInterval = 10000
 
-        if (time - 10 < 0) {
-          nextInterval = time * 1000
+        if (diff < 10000) {
+          nextInterval = 700
         }
 
-        if (time <= 0) {
+        if (diff <= 0) {
           collector.stop()
+          clearTimeout(checkTime)
           return;
         }
 
-        await updateMessage(giveaway, time, winners, amount, currencyStr);
+        await updateMessage(giveaway, time, winners, amount, currencyStr, dbSPT.linkToNFT, dbGiveaway.giveawayID);
         //Set a new timeout.
-        setTimeout(updateTime, nextInterval);
+        checkTime = setTimeout(updateTime, nextInterval);
     }
     //Run the function in ten seconds.
     setTimeout(updateTime, 10000);
@@ -284,6 +316,7 @@ exports.createGiveaway = async function(msg, args, discordClient) {
     })
 
     collector.on("end", async (collected) => {
+        var link = collector.message.embeds[0].image.url
         //Create an array out of who entered.
         if (collected.array().length === 0) {
           whoWon = false;
@@ -296,7 +329,7 @@ exports.createGiveaway = async function(msg, args, discordClient) {
         //Make sure someone entered.
         if (users.length === 1) {
           whoWon = false;
-          await endMessage(giveaway, whoWon);
+          await endMessage(giveaway, whoWon, link);
           return;
         }
 
@@ -345,19 +378,19 @@ exports.createGiveaway = async function(msg, args, discordClient) {
           tipSuccess = await tips.tipUser(tipInfo, usrProfile, toProfile, c.GIVEAWAY, client, msg)
         }
 
-        await endMessage(giveaway, whoWon);
+        await endMessage(giveaway, whoWon, link);
 
         //Send a new message to the channel about the winners.
-        giveaway.channel.send({
-            embed: {
-                description: `
-              ${EMOJI} ${SYS_EMOJI} **${currencyStr} GIVEAWAY!** ${SYS_EMOJI} ${EMOJI}
+        desc = `
+              ${EMOJI} **${currencyStr} GIVEAWAY!** ${EMOJI}
 
-              Congratulations to the winners of **${amount.toString()}** ${currencyStr} each!
+              Congratulations to the winner(s) of **${amount.toString()}** ${currencyStr}!\n
               ${"<@" + whoWon.join(">\r\n<@") + ">"}
                 `
-            }
-        });
+
+        var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, false)
+        giveaway.channel.send(embed)
+        var ended = await db.endGiveaway(dbGiveaway.giveawayID)
     });
   } catch (error) {
     console.log(error)
