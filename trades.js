@@ -199,10 +199,12 @@ exports.createTrade = async function(message, args) {
       }
 
       if (config.onlyVerifiedSPTs) {
-        var dbSPT = await db.getSPT(tokenArgs[i])
-        if (!dbSPT) {
-          message.channel.send({embed: { color: c.FAIL_COL, description: `Only verified Syscoin Platform Tokens (SPTs) are allowed at this time. Please contact an admin if you would like the token ${tokenArgs[i]} to be verified.`}})
-          return
+        if (tokenArgs[i] !== config.ctick) {
+          var dbSPT = await db.getSPT(tokenArgs[i])
+          if (!dbSPT) {
+            message.channel.send({embed: { color: c.FAIL_COL, description: `Only verified Syscoin Platform Tokens (SPTs) are allowed at this time. Please contact an admin if you would like the token ${tokenArgs[i]} to be verified.`}})
+            return
+          }
         }
       }
 
@@ -285,8 +287,12 @@ exports.createTrade = async function(message, args) {
                   `\nTrading: ${amountArgs[0]} ${tokenStr[0]} for ${amountArgs[1]} ${tokenStr[1]}` +
                   `\nTrade is open for ${config.tradeTime} minutes. After this time it will be removed.`
 
-      var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, true)
-      message.channel.send(embed)
+      if (cryptos[0] !== config.ctick) {
+        var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, true)
+        message.channel.send(embed)
+      } else {
+        message.channel.send({embed: {description: desc}})
+      }
     } else {
       // if trade isn't created for whatever reason then remove locked balance
       var revertedBalance = await db.editBalanceLocked(message.author.id, cryptos[0], currentLocked)

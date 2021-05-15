@@ -51,14 +51,24 @@ ${formatWinners(winners)}
 //Updates a message.
 async function updateMessage(message, time, winners, amount, symbol, link, giveawayID) {
   try {
-    await message.edit("", {
-        embed: {
-            description:
-              await createDescription(time, winners, amount, symbol, giveawayID),
-            image: { url: link },
-            color: c.SUCCESS_COL
-        }
-    });
+    if (symbol !== config.ctick) {
+      await message.edit("", {
+          embed: {
+              description:
+                await createDescription(time, winners, amount, symbol, giveawayID),
+              image: { url: link },
+              color: c.SUCCESS_COL
+          }
+      });
+    } else {
+      await message.edit("", {
+          embed: {
+              description:
+                await createDescription(time, winners, amount, symbol, giveawayID),
+              color: c.SUCCESS_COL
+          }
+      });
+    }
   } catch (error) {
     console.log(error)
   }
@@ -71,12 +81,14 @@ async function endMessage(message, whoWon, link) {
         await message.edit("", {
             embed: {
                 description: "This giveaway has ended! Sadly, no one entered.",
+                image: { url: link },
                 color: c.FAIL_COL
             }
         });
 
         return;
     }
+
 
     await message.edit("", {
         embed: {
@@ -136,7 +148,6 @@ exports.createGiveaway = async function(msg, args, discordClient) {
           return
         }
       } else {
-        gCurrency = "SYS"
         currencyStr = "SYS"
       }
     }
@@ -258,17 +269,14 @@ exports.createGiveaway = async function(msg, args, discordClient) {
 
     var desc = await createDescription(time, winners, amount, currencyStr, dbGiveaway.giveawayID)
 
-    var embed = new Discord.MessageEmbed()
-        .setColor(c.SUCCESS_COL)
-        .setDescription(desc)
-
-    var dbSPT = await db.getSPT(token.assetGuid)
-    if (dbSPT && dbSPT.linkToNFT) {
-      embed.setImage(dbSPT.linkToNFT)
+    var giveaway
+    if (gCurrency !== config.ctick) {
+      var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, false)
+      // send message
+      giveaway = await msg.channel.send(embed)
+    } else {
+      giveaway = await msg.channel.send({embed: {description: desc}})
     }
-
-    // send message
-    var giveaway = await msg.channel.send(embed)
 
     //Create the var of who won.
     var whoWon = [];
@@ -299,7 +307,11 @@ exports.createGiveaway = async function(msg, args, discordClient) {
           return;
         }
 
-        await updateMessage(giveaway, time, winners, amount, currencyStr, dbSPT.linkToNFT, dbGiveaway.giveawayID);
+        if (gCurrency !== config.ctick) {
+          await updateMessage(giveaway, time, winners, amount, currencyStr, dbSPT.linkToNFT, dbGiveaway.giveawayID);
+        } else {
+          await updateMessage(giveaway, time, winners, amount, currencyStr, null, dbGiveaway.giveawayID);
+        }
         //Set a new timeout.
         checkTime = setTimeout(updateTime, nextInterval);
     }
@@ -316,7 +328,10 @@ exports.createGiveaway = async function(msg, args, discordClient) {
     })
 
     collector.on("end", async (collected) => {
-        var link = collector.message.embeds[0].image.url
+        var link = null
+        if (gCurrency !== config.ctick) {
+          link = collector.message.embeds[0].image.url
+        }
         //Create an array out of who entered.
         if (collected.array().length === 0) {
           whoWon = false;
@@ -387,9 +402,12 @@ exports.createGiveaway = async function(msg, args, discordClient) {
               Congratulations to the winner(s) of **${amount.toString()}** ${currencyStr}!\n
               ${"<@" + whoWon.join(">\r\n<@") + ">"}
                 `
-
-        var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, false)
-        giveaway.channel.send(embed)
+        if (gCurrency !== config.ctick) {
+          var embed = await utils.createNFTEmbed(token.assetGuid, c.SUCCESS_COL, desc, false)
+          giveaway.channel.send(embed)
+        } else {
+          giveaway.channel.send({embed: {description: desc}})
+        }
         var ended = await db.endGiveaway(dbGiveaway.giveawayID)
     });
   } catch (error) {
