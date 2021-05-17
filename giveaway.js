@@ -308,6 +308,7 @@ exports.createGiveaway = async function(msg, args, discordClient) {
         }
 
         if (gCurrency !== config.ctick) {
+          let dbSPT = await db.getSPT(gCurrency)
           await updateMessage(giveaway, time, winners, amount, currencyStr, dbSPT.linkToNFT, dbGiveaway.giveawayID);
         } else {
           await updateMessage(giveaway, time, winners, amount, currencyStr, null, dbGiveaway.giveawayID);
