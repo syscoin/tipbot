@@ -412,6 +412,6 @@ exports.createGiveaway = async function(msg, args, discordClient) {
     });
   } catch (error) {
     console.log(error)
-    giveaway.channel.send({embed: {description: "Error creating giveaway."}})
+    msg.channel.send({embed: {description: "Error creating giveaway."}})
   }
 };
