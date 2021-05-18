@@ -51,7 +51,7 @@ ${formatWinners(winners)}
 //Updates a message.
 async function updateMessage(message, time, winners, amount, symbol, link, giveawayID) {
   try {
-    if (symbol !== config.ctick) {
+    if (symbol !== config.ctick && link) {
       await message.edit("", {
           embed: {
               description:
@@ -331,7 +331,9 @@ exports.createGiveaway = async function(msg, args, discordClient) {
     collector.on("end", async (collected) => {
         var link = null
         if (gCurrency !== config.ctick) {
-          link = collector.message.embeds[0].image.url
+          if (collector.message.embeds[0].image) {
+            link = collector.message.embeds[0].image.url
+          }
         }
         //Create an array out of who entered.
         if (collected.array().length === 0) {
