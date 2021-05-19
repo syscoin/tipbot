@@ -324,7 +324,11 @@ exports.createGiveaway = async function(msg, args, discordClient) {
 
       if (!userProfile) {
         giveaway.channel.send({embed: {description: `<@${user.id}> you have to register with the tipbot before you can enter the giveaway. Type !register in the chat and then react again.`}})
-        reaction.users.remove(user)
+        try {
+          reaction.users.remove(user)
+        } catch (error) {
+          console.log(`Can't remove reaction of ${user.id}`)
+        }
       }
     })
 
