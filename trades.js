@@ -380,6 +380,7 @@ exports.acceptTrade = async function(message, args, client) {
             let restrictedB = await db.editProfile(profileB.userID, profileB.address, true)
             message.channel.send({embed: { color: c.FAIL_COL, description: `Reverting failed. <@${profileB.userID} you have been restricted. Please contact an admin.`}})
           }
+          return
         }
 
         var completedTrade = await db.completeTrade(trade.tradeID)
