@@ -8,7 +8,7 @@ const c = require('./c.json')
 const config = require('./config.json')
 var prefix = config.prefix
 
-const base64 = require('base-64');
+const base64 = require('js-base64');
 
 const sjs = require('syscoinjs-lib')
 const backendURL = config.blockURL

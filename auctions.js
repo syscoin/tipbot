@@ -8,8 +8,6 @@ const c = require('./c.json')
 const config = require('./config.json')
 var prefix = config.prefix
 
-const base64 = require('base-64')
-
 const BigNumber = require('bignumber.js')
 BigNumber.config({ DECIMAL_PLACES: 8 })
 BigNumber.config({ EXPONENTIAL_AT: 1e+9 })

@@ -3,7 +3,7 @@ var exports = module.exports = {};
 var FAIL_EMOJI = "❌"
 var SUCCESS_EMOJI = "✅"
 
-const base64 = require('base-64');
+const base64 = require('js-base64');
 const Discord = require('discord.js');
 
 const BigNumber = require('bignumber.js')

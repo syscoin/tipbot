@@ -25,7 +25,7 @@ const ccxt = require ('ccxt')
 const express = require('express')
 const request = require('request')
 const mongoose = require('mongoose')
-const base64 = require('base-64')
+const base64 = require('js-base64')
 const axios = require('axios')
 
 const BigNumber = require('bignumber.js')
