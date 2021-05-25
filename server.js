@@ -338,6 +338,7 @@ switch (command) {
                var actionStr = ""
                let options = {details: "tokenBalances"}
                const backendAccount = await sjs.utils.fetchBackendAccount(backendURL, userProfile.address, options)
+
                const depBalance = new BigNumber(backendAccount.balance)
                var balWasUpdated = false
                // check and add any sys within the deposit address to the profile's balance
@@ -464,7 +465,12 @@ switch (command) {
                          .setImage(`attachment://${message.author.id}.png`)
                  }
 
-                 user.send(embed)
+                 try {
+                     user.send(embed)
+                 } catch (error) {
+                     console.log(`Error sending DM to ${message.author.id}`)
+                     console.log(error)
+                 }
                }
              }
            makeBalTransferPrivate()
