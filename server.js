@@ -443,7 +443,14 @@ switch (command) {
                  token = undefined
                }
 
-               user.send({embed: { color: c.SUCCESS_COL, description: `<\@${message.author.id}> has:\n ${balString.toLocaleString()}`}})
+               try {
+                  user.send({embed: { color: c.SUCCESS_COL, description: `<\@${message.author.id}> has:\n ${balString.toLocaleString()}`}})
+               } catch (error) {
+                   console.log(`Error sending DM to ${message.author.id}`)
+                   console.log(error)
+                   message.channel.send({embed: { color: c.FAIL_COL, description: `Can't send balance to <@${message.author.id}>. Do you have DMs from non-friends turned off?` }}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
+               }
+
                if (balWasUpdated) {
 
                  let desc = `A new deposit address has been created for you, do NOT send any more funds to the previous deposit address.\n\n` +
@@ -470,6 +477,7 @@ switch (command) {
                  } catch (error) {
                      console.log(`Error sending DM to ${message.author.id}`)
                      console.log(error)
+                     message.channel.send({embed: { color: c.FAIL_COL, description: `Can't message <@${message.author.id}>. Do you have DMs from non-friends turned off?` }}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
                  }
                }
              }
