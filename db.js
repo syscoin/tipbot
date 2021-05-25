@@ -30,7 +30,8 @@ exports.connect = function() {
         {
           useNewUrlParser: true,
           useUnifiedTopology: true,
-          useFindAndModify: false
+          useFindAndModify: false,
+          useCreateIndex: true
         });
   } catch (error) {
     console.log(error)

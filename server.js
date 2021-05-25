@@ -415,10 +415,10 @@ switch (command) {
                  if (cc['currencyID'] !== "SYS") {
                    for (let key in cc) {
                      if (key === "currencyID") {
-                       token = await utils.getSPT(cc[key])
+                       var token = await utils.getSPT(cc[key])
 
                        if (!token) {
-                         return
+                         break
                        }
 
                        let symbol = base64.decode(token.symbol).toUpperCase()

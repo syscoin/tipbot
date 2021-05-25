@@ -93,7 +93,18 @@ async function printAuctions(auctions, type, message, client, old) {
     var spt, tokenStr
     // if it's printing all auctions selling a specific token
     if (type === c.TOKEN) {
-      spt = await utils.getSPT(auctions[0].token)
+      let verifiedSPTLink = await db.getSPT(auctions[0].token)
+      if (verifiedSPTLink) {
+        spt = await utils.getSPT(verifiedSPTLink.guid)
+      } else {
+        spt = await utils.getSPT(auctions[0].token)
+      }
+
+      if (!spt) {
+        message.channel.send({embed: { color: c.FAIL_COL, description: "No recent auctions to show." }})
+        return
+      }
+
       tokenStr = await utils.getExpLink(auctions[0].token, c.TOKEN)
     }
 
@@ -206,7 +217,13 @@ exports.createAuction = async function(message, args) {
       return
     }
 
-    var token = await utils.getSPT(args[1])
+    var token;
+    let verifiedSPTLink = await db.getSPT(args[1])
+    if (verifiedSPTLink) {
+      token = await utils.getSPT(verifiedSPTLink.guid)
+    } else {
+      token = await utils.getSPT(args[1])
+    }
 
     if (!token) {
       message.channel.send({embed: { color: c.FAIL_COL, description: `Couldn't find the token: ${args[1]}. Please ensure you entered the symbol/GUID correctly.`}})
@@ -768,7 +785,19 @@ exports.findAuctions = async function(message, args, client, old) {
       return
     }
 
-    var token = await utils.getSPT(args[0])
+    var token;
+    let verifiedSPTLink = await db.getSPT(args[0])
+    if (verifiedSPTLink) {
+      token = await utils.getSPT(verifiedSPTLink.guid)
+    } else {
+      token = await utils.getSPT(args[0])
+    }
+
+    if (!token) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `Token not found.`}})
+      return
+    }
+
     var auctions
     if (old) {
       auctions = await db.getOldTokenAuctions(token.assetGuid, config.maxItems)

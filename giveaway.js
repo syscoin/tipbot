@@ -133,8 +133,16 @@ exports.createGiveaway = async function(msg, args, discordClient) {
     if (args[3]) {
       gCurrency = args[3].toUpperCase()
       if (gCurrency !== "SYS") {
-        token = await utils.getSPT(gCurrency)
 
+        var token;
+        let verifiedSPTLink = await db.getSPT(gCurrency)
+        if (verifiedSPTLink) {
+          token = await utils.getSPT(verifiedSPTLink.guid)
+        } else {
+          token = await utils.getSPT(gCurrency)
+        }
+
+        console.log(token)
         if (!token) {
           msg.reply(`Couldn't find the token: ${gCurrency}. Please ensure you entered the symbol/GUID correctly.`)
           return

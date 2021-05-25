@@ -55,19 +55,18 @@ exports.checkAdminRole = function(message) {
   }
 }
 
-// tries to find an SPT link to a GUID in the db, if that fails it tries the backend
-exports.getSPT = async function getSPT(tokenStr) {
+// checks if a token exists on the backend based on the guid
+exports.getSPT = async function getSPT(guid) {
   try {
-    tokenStr = tokenStr.toUpperCase()
-    var userSPT = await db.getSPT(tokenStr)
-    if (userSPT) {
-      return sjs.utils.fetchBackendAsset(backendURL, userSPT.guid)
+    var token = await sjs.utils.fetchBackendAsset(backendURL, guid)
+    if (token instanceof Error) {
+      return null
     } else {
-      return sjs.utils.fetchBackendAsset(backendURL, tokenStr)
+      return token
     }
   } catch (error) {
     console.log(error)
-    return error
+    return null
   }
 }
 

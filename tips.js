@@ -72,7 +72,14 @@ exports.tipUser = async function(args, fromProfile, toProfile, type, client, mes
       } else {
         tipCurrency = args[2].toUpperCase()
         if (tipCurrency !== "SYS") {
-          token = await utils.getSPT(tipCurrency)
+
+          var token;
+          let verifiedSPTLink = await db.getSPT(tipCurrency)
+          if (verifiedSPTLink) {
+            token = await utils.getSPT(verifiedSPTLink.guid)
+          } else {
+            token = await utils.getSPT(tipCurrency)
+          }
 
           if (!token) {
             msgChanOrUser.send({embed: { color: c.FAIL_COL, description: `Couldn't find the token: ${tipCurrency}. Please ensure you entered the symbol/GUID correctly.`}})

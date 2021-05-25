@@ -58,10 +58,17 @@ exports.createOrEditMission = async function(args, message, client, edit) {
     if (args[2]) {
       gCurrency = args[2].toUpperCase();
       if (gCurrency !== "SYS") {
-        token = await utils.getSPT(gCurrency);
+
+        var token;
+        let verifiedSPTLink = await db.getSPT(gCurrency)
+        if (verifiedSPTLink) {
+          token = await utils.getSPT(verifiedSPTLink.guid)
+        } else {
+          token = await utils.getSPT(gCurrency)
+        }
 
         if (!token) {
-          msg.reply(`Couldn't find the token: ${gCurrency}. Please ensure you entered the symbol/GUID correctly.`);
+          message.reply(`Couldn't find the token: ${gCurrency}. Please ensure you entered the symbol/GUID correctly.`);
           return;
         }
 
@@ -170,7 +177,10 @@ exports.createOrEditMission = async function(args, message, client, edit) {
     var endDate = new Date(timeMilliSeconds.plus(now).toNumber())
 
     let satValue = utils.toSats(payoutBig, decimals);
-    let satSuggesterValue = utils.toSats(suggesterPayout, decimals)
+    let satSuggesterValue = null
+    if (suggester) {
+      satSuggesterValue = utils.toSats(suggesterPayout, decimals)
+    }
     var missionNew
     if (!edit) {
       missionNew = await db.createMission(missionName, message.author.id, satValue, gCurrency, endDate, suggesterID, satSuggesterValue);
