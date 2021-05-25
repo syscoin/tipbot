@@ -172,7 +172,12 @@ exports.getBalance = function(discordID, coinOrTokenID) {
 // find all balances held by a specific profile
 exports.getBalances = function(discordID) {
   try {
-    return Balance.find({ userID: discordID, amount: { $gt: 0 } });
+    let bals = Balance.find({ userID: discordID, amount: { $gt: 0 } });
+    if (!bals) {
+      return []
+    } else {
+      return bals
+    }
   } catch (error) {
     console.log(error)
     return null
