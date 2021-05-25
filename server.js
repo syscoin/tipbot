@@ -409,9 +409,6 @@ switch (command) {
                let balString = `SYS: ${utils.toWholeUnit(new BigNumber(sysBal.amount), 8).toString()}\n`
                for (let i = 0; i < profileBals.length; i++) {
                  let cc = profileBals[i]
-                 if (cc['amount'] === "0") {
-                   continue
-                 }
                  if (cc['currencyID'] !== "SYS") {
                    for (let key in cc) {
                      if (key === "currencyID") {
