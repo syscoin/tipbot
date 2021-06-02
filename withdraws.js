@@ -41,7 +41,12 @@ async function sendOnchain(sendTo, amount, currency) {
   try {
     const xpub = HDSigner.getAccountXpub()
     const changeAddress = await HDSigner.getNewChangeAddress()
-    const txOpts = { rbf: false }
+    var txOpts
+    if (currency !== "SYS") {
+      txOpts = { rbf: false }
+    } else {
+      txOpts = { rbf: true }
+    }
     const feeRate = new BN(10)
 
     var txResult
