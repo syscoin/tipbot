@@ -17,35 +17,23 @@ var HDSigner, syscoinjs
 const sjs = require('syscoinjs-lib')
 const BN = sjs.utils.BN
 
-// signs and sends a tx onchain, edited from the default Syscoin function to return the txID
-// for later use
-async function signAndSend(res, HDSigner, notaryAssets) {
-  try {
-    // notarize if necessary
-    let psbt = await sjs.utils.signWithHDSigner(res, HDSigner)
-    if (notaryAssets) {
-      const wasNotarized = await sjs.utils.notarizeRes(res, notaryAssets, psbt.extractTransaction().toHex())
-      if (wasNotarized) {
-        psbt = await sjs.utils.signWithHDSigner(res, HDSigner)
-      } else {
-        return psbt
-      }
-    }
-    var result = { psbt: psbt, resSend: null }
-    const resSend = await sjs.utils.sendRawTransaction(backendURL, psbt.extractTransaction().toHex(), HDSigner)
-    if (resSend.error) {
-      console.log('could not send tx! error: ' + resSend.error.message)
-    } else if (resSend.result) {
-      console.log('tx successfully sent! txid: ' + resSend.result)
-      result.txID = resSend.result
-      return result
-    } else {
-      console.log('Unrecognized response from backend: ' + resSend)
-    }
-    return result
-  } catch (error) {
-    console.log(error)
+function reverseBuffer (buffer) {
+  if (buffer.length < 1) return buffer
+  let j = buffer.length - 1
+  let tmp = 0
+  for (let i = 0; i < buffer.length / 2; i++) {
+    tmp = buffer[i]
+    buffer[i] = buffer[j]
+    buffer[j] = tmp
+    j--
   }
+  return buffer
+}
+
+function getTxId(psbt) {
+  var hashBuf = psbt.extractTransaction().getHash()
+  var reversed = reverseBuffer(hashBuf)
+  return reversed.toString('hex')
 }
 
 // used to send a tx onchain
@@ -64,7 +52,7 @@ async function sendOnchain(sendTo, amount, currency) {
       ]
       try {
         txResult = await syscoinjs.createTransaction(txOpts, changeAddress, outputsArr, feeRate, xpub)
-        sentResult = await signAndSend(txResult.res, HDSigner)
+        sentResult = await syscoinjs.signAndSend(txResult.res, HDSigner)
         return sentResult
       } catch (error) {
         console.log(error)
@@ -185,15 +173,16 @@ exports.withdraw = async function(args, message, client, signer, sysjs) {
 
         // send tx onchain, if tx is successful then edit the user's balances, and log the action
         txResult = await sendOnchain(sendTo, withdrawAmount, currencyID)
-        if (txResult.txID) {
+        let txid = getTxId(txResult)
+        if (txid) {
           let updatedBalance = myBalanceAmount.sub(withdrawAmount)
           let newBalance = await db.editBalanceAmount(message.author.id, currencyID, updatedBalance)
-          let link = await utils.getExpLink(txResult.txID, c.TX, "Click here to see the transaction.")
+          let link = await utils.getExpLink(txid, c.TX, "Click here to see the transaction.")
           user.send({embed: { color: c.SUCCESS_COL, description: `Your withdrawal was successful!\n ${link}`}})
 
           var sendArr = []
           sendArr.push(sendTo)
-          var actionStr = `Withdraw: ${withdrawWhole.toString()} ${currencyID} | txid: ${txResult.txID}`
+          var actionStr = `Withdraw: ${withdrawWhole.toString()} ${currencyID} | txid: ${txid}`
           try {
             let log = await db.createLog(message.author.id, actionStr, sendArr, withdrawSat.toString())
           } catch (error) {
