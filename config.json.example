@@ -7,6 +7,7 @@
   "discordKey": "",
   "discordAdminRole": "",
   "adminRoleID": "",
+  "MissionRoleID": "",
   "discordServer": "",
   "missionChannel": "",
   "missionPayOutsChannel": "",
