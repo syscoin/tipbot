@@ -40,17 +40,17 @@ exports.bigNumberToBN = function(bigNumber) {
   return new BN(bigNumber.toString())
 }
 
-// checks if the writer of the message has the admin role
-exports.checkAdminRole = function(message) {
+// checks if the writer of the message has the Mission role
+exports.checkMissionRole = function(message) {
   try {
-    if (!message.member.roles.cache.has(config.adminRoleID)) {
+    if (!message.member.roles.cache.has(config.MissionRoleID)) {
       return false
     } else {
       return true
     }
   } catch (error) {
     console.log(error)
-    message.channel.send({embed: { color: c.FAIL_COL, description: "Error checking admin role."}});
+    message.channel.send({embed: { color: c.FAIL_COL, description: "Error checking Mission role."}});
     return false
   }
 }
