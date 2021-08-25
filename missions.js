@@ -31,7 +31,7 @@ function arraySplit(list, howMany) {
 */
 exports.createOrEditMission = async function(args, message, client, edit) {
   try {
-    if (!utils.checkAdminRole(message)) {
+    if (!utils.checkMissionRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
