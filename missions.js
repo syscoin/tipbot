@@ -209,7 +209,7 @@ exports.createOrEditMission = async function(args, message, client, edit) {
 */
 exports.listMissions = async function(args, message, client) {
   try {
-    if (!utils.checkAdminRole(message)) {
+    if (!utils.checkMissionRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
@@ -236,7 +236,7 @@ exports.listMissions = async function(args, message, client) {
 */
 exports.missionArchive = async function(args, message, client) {
   try {
-    if (!utils.checkAdminRole(message)) {
+    if (!utils.checkMissionRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
@@ -263,7 +263,7 @@ exports.missionArchive = async function(args, message, client) {
 */
 exports.removeFromMission = async function(args, message, client) {
   try {
-    if (!utils.checkAdminRole(message)) {
+    if (!utils.checkMissionRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
@@ -318,7 +318,7 @@ exports.removeFromMission = async function(args, message, client) {
 */
 exports.addToMission = async function(args, message, client) {
   try {
-    if (!utils.checkAdminRole(message)) {
+    if (!utils.checkMissionRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
@@ -370,7 +370,7 @@ exports.addToMission = async function(args, message, client) {
 */
 exports.printMissionDetails = async function(args, message, client) {
   try {
-    if (!utils.checkAdminRole(message)) {
+    if (!utils.checkMissionRole(message)) {
       message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
       return;
     }
@@ -453,7 +453,7 @@ exports.printMissionDetails = async function(args, message, client) {
 exports.payMission = async function(args, message, client, automated) {
   try {
     if (!automated) {
-      if (!utils.checkAdminRole(message)) {
+      if (!utils.checkMissionRole(message)) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
         return;
       }
@@ -625,7 +625,7 @@ exports.payMission = async function(args, message, client, automated) {
 exports.archiveMission = async function(args, message, client, automated) {
   try {
     if (!automated) {
-      if (!utils.checkAdminRole(message)) {
+      if (!utils.checkMissionRole(message)) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "Sorry, you do not have the required permission."}});
         return;
       }
