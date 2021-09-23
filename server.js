@@ -123,7 +123,7 @@ client.on('ready', () => {
     }
 
     // set status
-    client.user.setActivity(`#tips - !help `, { type: 'WATCHING' })
+    client.user.setActivity(`#tips - !help `, { type: 'PLAYING' })
 })
 
 
