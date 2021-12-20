@@ -342,7 +342,9 @@ switch (command) {
                const depBalance = new BigNumber(backendAccount.balance)
                var balWasUpdated = false
                // check and add any sys within the deposit address to the profile's balance
-               if (depBalance.gt(0)) {
+               // new addresses are dusted to make sure explorer derives them, so check if deposit
+               // amount is greater than the 1000 sat dust
+               if (depBalance.gt(1000)) {
                  var sysBalance = await db.getBalance(message.author.id, "SYS")
                  var sysBalance = new BigNumber(sysBalance.amount)
 
@@ -807,6 +809,24 @@ switch (command) {
         } else {
          let newAddress = await HDSigner.getNewReceivingAddress()
          ls.set("receiveIndex", HDSigner.receivingIndex)
+
+         message.channel.send({embed: { color: c.SUCCESS_COL, description: "Creating your account..."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
+
+         try {
+           // dust the address to make sure that the explorer derives more for this xpub
+           let txOpts = { rbf: false }
+           let xpub = HDSigner.getAccountXpub()
+           const feeRate = new BN(10);
+           let outputsArr = [{address: newAddress, value: new BN(1000)}]
+           let change = await HDSigner.getNewChangeAddress()
+           var txResult = await syscoinjs.createTransaction(txOpts, change, outputsArr, feeRate, xpub)
+           sentResult = await syscoinjs.signAndSend(txResult.res, null, HDSigner)
+           console.log("Successfully dusted " + newAddress)
+           console.log(txResult.psbt.extractTransaction().getId())
+         } catch (error) {
+           console.log("Error dusting " + message.author.id)
+           console.log(error)
+         }
 
          let profile = db.createProfile(message.author.id, newAddress)
          let sysBalance = db.createBalance(message.author.id, "SYS", 0)
