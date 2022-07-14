@@ -71,7 +71,7 @@ async function sendOnchain(sendTo, amount, currency) {
       ])
       try {
         txResult = await syscoinjs.assetAllocationSend(txOpts, assetMap, changeAddress, feeRate, xpub)
-        sentResult = await signAndSend(txResult.res, null, HDSigner)
+        sentResult = await syscoinjs.signAndSend(txResult.res, null, HDSigner)
         return sentResult
       } catch (error) {
         console.log(error)
