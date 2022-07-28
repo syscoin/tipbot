@@ -27,6 +27,13 @@ const request = require('request')
 const mongoose = require('mongoose')
 const base64 = require('js-base64')
 const axios = require('axios')
+const HDWallet = require('ethereum-hdwallet');
+const ethers = require('ethers')
+
+const provider = new ethers.providers.JsonRpcProvider(config.nevm.rpcUrl)
+const wallet = new ethers.Wallet.fromMnemonic(config.nevm.mnemonic);
+
+const signer = provider.getSigner()
 
 const BigNumber = require('bignumber.js')
 BigNumber.config({ DECIMAL_PLACES: 8 })
@@ -60,6 +67,10 @@ const sjs = require('syscoinjs-lib')
 const backendURL = config.blockURL
 // 'null' for no password encryption for local storage and 'true' for testnet
 const HDSigner = new sjs.utils.HDSigner(config.mnemonic, null, config.testnet)
+const hdWallet = HDWallet.fromMnemonic(config.nevm.mnemonic).derive(HDWallet.DefaultHDPath);
+
+
+
 var receiveIndex = ls.get("receiveIndex")
 if (receiveIndex) {
   HDSigner.receivingIndex = Number(receiveIndex)
@@ -78,6 +89,7 @@ const tips = require('./tips.js')
 const trades = require('./trades.js')
 const utils = require('./utils.js')
 const withdraws = require('./withdraws.js')
+const nevm = require('./nevm')
 
 // Constants required
 const constants = require("./constants")
@@ -247,6 +259,9 @@ switch (command) {
   case "dep":
   case "deposit":
     try {
+      if(args.length > 0 && args[0] === "nevm") {
+        return nevm.deposit(message)
+      }
       var myProfile = await db.getProfile(message.author.id)
       if (myProfile) {
         let desc = `Hi, **<@${message.author.id}>** Any coins/tokens sent to this address will be added to your ${config.botname} balance within a few minutes.` +
@@ -310,6 +325,10 @@ switch (command) {
 
     if (message.channel.id == config.tipChannel
         || message.channel.type === "dm") {
+          console.log("withdawal args", args);
+      if(args.length === 3 && args[2] === "nevm") {
+        return nevm.withdraw(client, message, args, provider);
+      }
       withdraws.withdraw(args, message, client, HDSigner, syscoinjs)
     }
     break
@@ -318,7 +337,6 @@ switch (command) {
   case "balance":
     // used to check a user's balance and to deposit tokens if they have any in their deposit address
     // will then change the deposit address to a new receive address
-
     try {
       if (message.channel.id == config.tipChannel
           || message.channel.id == config.tradeChannel
@@ -326,6 +344,10 @@ switch (command) {
           || message.channel.id == config.missionChannel
           || message.channel.id == config.giveawayChannel
           || message.channel.type == "dm") {
+
+        if(args.length > 0 && args[0] === "nevm") {
+          return nevm.balance(client, message, provider)
+        }
 
         // get the relevant profile's info
         const userProfile = await db.getProfile(message.author.id)
@@ -786,6 +808,17 @@ switch (command) {
         return
       }
 
+      if (args[2] === "nevm") {
+        return await nevm.send(
+          client,
+          message,
+          args,
+          myProfile,
+          await ifProfile(receiver.id),
+          provider
+        );
+      }
+
       let tipSuccess = await tips.tipUser(args, myProfile, await ifProfile(receiver.id), false, client, message)
     } catch (error) {
       console.log(error)
@@ -794,7 +827,6 @@ switch (command) {
 
   case "reg":
   case "register":
-    // registers a user with the tipbot
     try {
       if (message.channel.id == config.tipChannel
           || message.channel.id == config.tradeChannel
@@ -802,6 +834,10 @@ switch (command) {
           || message.channel.id == config.missionChannel
           || message.channel.id == config.giveawayChannel
           || message.channel.type === "dm") {
+
+        if(args.length > 0 && args[0] === "nevm") {
+          return nevm.register(client, message, args)
+        }
 
         let profileExists = await ifProfile(message.author.id)
         if (profileExists) {

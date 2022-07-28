@@ -59,3 +59,21 @@ exports.getQR = async function(userID) {
 
   return addLogo(pathToFile, pathToLogoQR)
 }
+
+exports.getNevmQR = async function (userId) {
+  try {
+    const pathToFile = `./qr/${userId}qr-nevm.png`;
+    const pathToLogoQR = `./qr/${userId}-nevm.png`;
+    const nevmWallet = await db.nevm.getNevmWallet(userId);
+    await qr.toFile(pathToFile, nevmWallet.address, {
+      color: {
+        dark: "#000000",
+        light: "#ffffff",
+      },
+    });
+    return addLogo(pathToFile, pathToLogoQR);
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+};
