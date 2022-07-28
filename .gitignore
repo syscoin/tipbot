@@ -2,6 +2,7 @@
 package-lock.json
 config.json
 ls
+qr
 logs
 *.log
 npm-debug.log*

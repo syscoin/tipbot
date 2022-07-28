@@ -18,6 +18,7 @@ var Mission = require('./models/mission.js');
 var Profile = require('./models/profile.js');
 var SPT = require('./models/spt.js')
 var Trade = require('./models/trade.js');
+const NevmWallet = require('./models/nevm-wallet');
 
 exports.connect = function() {
   try {
@@ -713,4 +714,55 @@ exports.deleteAuction = function(id) {
     console.log(error)
     return null
   }
+}
+
+/**
+ * Get NEVM Wallet
+ * @param {string} userId 
+ */
+function getNevmWallet(userId) {
+  try {
+    return NevmWallet.findOne({ userId })
+  }catch(e) {
+    console.log(e);
+    return null;
+  }
+}
+
+/**
+ * Creates new entry in NEVM Wallet
+ * @param {string} userId Discord user id
+ * @param {string} address Ethereum address
+ * @param {string} privateKey Ethereum private key
+ */
+function createNevmWallet(userId, address, privateKey) {
+  try {
+    return NevmWallet.create({
+      userId,
+      address,
+      privateKey
+    })
+  }catch(e) {
+    console.log(e);
+    return null;
+  }
+}
+
+/**
+ * Gets number of NEVM Walelts
+ * @returns {Promise<number>}
+ */
+function getNevmWalletCount() {
+  try {
+    return NevmWallet.countDocuments();
+  } catch (e) {
+    console.log(e);
+    return null;
+  }
+
+}
+exports.nevm = {
+  getNevmWallet,
+  getNevmWalletCount,
+  createNevmWallet
 }
