@@ -36,7 +36,6 @@ async function send(
   receiverProfile,
   jsonRpc
 ) {
-  console.log("Send Args", args);
   if (args.length < 2 || !senderProfile || !receiverProfile) {
     return sendUsageExample(message);
   }
