@@ -346,7 +346,7 @@ switch (command) {
           || message.channel.type == "dm") {
 
         if(args.length > 0 && args[0] === "nevm") {
-          return nevm.balance(client, message, provider)
+          return nevm.balance(client, message, args, provider)
         }
 
         // get the relevant profile's info

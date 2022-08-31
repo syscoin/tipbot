@@ -3,14 +3,37 @@ const db = require("../db");
 const constants = require("../c.json");
 const utils = require("../utils");
 const Discord = require("discord.js");
+const config = require("../config.json");
+const { getErc20Contract } = require("./utils/contract");
+
+/**
+ * Fetch ERC20 token balance
+ * @param {ethers.providers.JsonRpcProvider} provider Ethers JSON PRC Provider
+ * @param {string} tokenSymbol Symbol of token being queried
+ * @param {string} walletAddress Wallet address of owner
+ * @returns {Promise<number> | undefined} Balance of wallet in wei or undefined if not supported
+ */
+const getTokenBalance = (provider, tokenSymbol, walletAddress) => {
+  const token = config.nevm.supportedTokens.find(
+    (token) => token.symbol === tokenSymbol.toUpperCase()
+  );
+  if (!token) {
+    return undefined;
+  }
+
+  const tokenContract = getErc20Contract(token.address, provider);
+
+  return tokenContract.balanceOf(walletAddress);
+};
 
 /**
  * Show SYS balance in NEVM of author
  * @param {Discord.Client} client Discord Client
  * @param {Discord.Message} message Discord message
+ * @param {string[]} args Message Arguments
  * @param {ethers.providers.JsonRpcProvider} jsonProvider Ethers JSON PRC Provider
  */
-async function balance(client, message, jsonProvider) {
+async function balance(client, message, args, jsonProvider) {
   const userId = message.author.id;
 
   const user = await client.users.fetch(userId);
@@ -55,13 +78,36 @@ async function balance(client, message, jsonProvider) {
       });
   }
 
-  const balanceInWei = await jsonProvider.getBalance(nevmWallet.address);
+  let balanceInWei = undefined;
+
+  const tokenSymbol = args.length > 1 ? args[1] : undefined;
+
+  if (tokenSymbol) {
+    balanceInWei = await getTokenBalance(
+      jsonProvider,
+      tokenSymbol,
+      nevmWallet.address
+    );
+    if (balanceInWei === undefined) {
+      return message.channel.send({
+        embed: {
+          color: constants.FAIL_COL,
+          description: `Hi, **<@${userId}>** \n*${tokenSymbol.toUpperCase()}* is not supported.`,
+        },
+      });
+    }
+  } else {
+    balanceInWei = await jsonProvider.getBalance(nevmWallet.address);
+  }
+
   const balanceInEth = ethers.utils.formatEther(balanceInWei);
 
   user.send({
     embed: {
       color: constants.SUCCESS_COL,
-      description: `Hi, **<@${userId}>** Your balance is ${balanceInEth} SYS.`,
+      description: `Hi, **<@${userId}>** Your balance is ${balanceInEth} ${(
+        tokenSymbol ?? "SYS"
+      ).toUpperCase()}.`,
     },
   });
 
