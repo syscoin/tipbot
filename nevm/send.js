@@ -7,6 +7,7 @@ const {
 const config = require("../config.json");
 const prefix = config.prefix;
 const utils = require("../utils");
+const { getErc20Contract } = require("./utils/contract");
 
 const SYS_EMOJI = ":boom:";
 
@@ -39,6 +40,8 @@ async function send(
   if (args.length < 2 || !senderProfile || !receiverProfile) {
     return sendUsageExample(message);
   }
+
+  const [argUser, argValue, argNevm, argSymbol] = args;
 
   const senderWallet = await db.nevm.getNevmWallet(senderProfile.userID);
   const receiverWallet = await db.nevm.getNevmWallet(receiverProfile.userID);
@@ -74,7 +77,7 @@ async function send(
   const maxFeePerGas = parseUnits("10", "gwei");
   const maxGasFee = maxFeePerGas.mul(gasLimit);
 
-  const value = parseEther(args[1].toString());
+  const value = parseEther(argValue.toString());
 
   if (!value.gt(0)) {
     message.channel.send({
@@ -103,7 +106,7 @@ async function send(
     });
   }
 
-  const signedTransaction = await wallet.signTransaction({
+  let transactionConfig = {
     type: 2,
     chainId: config.nevm.chainId,
     to: receiverWallet.address,
@@ -112,14 +115,63 @@ async function send(
     nonce,
     maxFeePerGas,
     maxPriorityFeePerGas: parseUnits("2", "gwei"),
-  });
+  };
+
+  if (argSymbol) {
+    const tokenSymbol = argSymbol;
+    const token = config.nevm.supportedTokens.find(
+      (token) => token.symbol === tokenSymbol.toUpperCase()
+    );
+    if (!token) {
+      return message.channel.send({
+        embed: {
+          color: constants.FAIL_COL,
+          description: `Hi, **<@${
+            senderProfile.userID
+          }>** \n*${tokenSymbol.toUpperCase()}* is not supported.`,
+        },
+      });
+    }
+
+    const tokenContract = getErc20Contract(token.address, jsonRpc);
+
+    const balance = await tokenContract.balanceOf(wallet.address);
+
+    if (balance.lt(value)) {
+      return message.channel.send({
+        embed: {
+          color: constants.FAIL_COL,
+          description: `Hi, **<@${
+            senderProfile.userID
+          }>** \n You don't have enough balance (*${tokenSymbol.toUpperCase()}*) to execute this transaction.`,
+        },
+      });
+    }
+
+    console.log({ value: value.toString() });
+
+    const transferTransactionConfig =
+      await tokenContract.populateTransaction.transfer(
+        receiverWallet.address,
+        value
+      );
+
+    transactionConfig = {
+      ...transactionConfig,
+      value: 0,
+      gasLimit: config.nevm.tokenGasLimit,
+      ...transferTransactionConfig,
+    };
+  }
+
+  const signedTransaction = await wallet.signTransaction(transactionConfig);
+
+  console.log("Sending Transaction...", { transactionConfig });
+  const valueInEther = formatEther(value);
 
   const sendUser = await client.users.fetch(senderProfile.userID);
   const receiveUser = await client.users.fetch(receiverProfile.userID);
 
-  const valueInEther = formatEther(value);
-
-  console.log("Sending Transaction...", wallet.address);
   jsonRpc
     .sendTransaction(signedTransaction)
     .then((response) => {
@@ -132,7 +184,9 @@ async function send(
       sendUser.send({
         embed: {
           color: constants.SUCCESS_COL,
-          description: `You sent <@${receiverProfile.userID}> ${valueInEther} SYS. Please wait for it to be mined.\n${explorerLink}`,
+          description: `You sent <@${receiverProfile.userID}> ${valueInEther} ${
+            argSymbol ?? "SYS"
+          }. Please wait for it to be mined.\n${explorerLink}`,
         },
       });
 
@@ -154,14 +208,51 @@ async function send(
       sendUser.send({
         embed: {
           color: constants.SUCCESS_COL,
-          description: `Your tip to <@${receiverProfile.userID}> ${valueInEther} SYS is confirmed.\n${explorerLink}`,
+          description: `Your tip to <@${
+            receiverProfile.userID
+          }> ${valueInEther} ${
+            argSymbol ?? "SYS"
+          } is confirmed.\n${explorerLink}`,
         },
       });
 
       receiveUser.send({
         embed: {
           color: constants.SUCCESS_COL,
-          description: `${SYS_EMOJI} The tip <@${senderProfile.userID}> sent you **${valueInEther}** SYS has been confirmed! ${SYS_EMOJI}.\n${explorerLink}`,
+          description: `${SYS_EMOJI} The tip <@${
+            senderProfile.userID
+          }> sent you **${valueInEther}** ${
+            argSymbol ?? "SYS"
+          } has been confirmed! ${SYS_EMOJI}.\n${explorerLink}`,
+        },
+      });
+
+      message.channel.send({
+        embed: {
+          color: constants.SUCCESS_COL,
+          description: `${SYS_EMOJI} <@${
+            senderProfile.userID
+          }> sent **${valueInEther.toString()}** ${argSymbol ?? "SYS"} to <@${
+            receiverProfile.userID
+          }>! ${SYS_EMOJI}`,
+        },
+      });
+    })
+    .catch((error) => {
+      console.log({ error });
+      const explorerLink = utils.getNevmExplorerLink(
+        "receipt.transactionHash",
+        "transaction",
+        "Click Here to View Transaction"
+      );
+      sendUser.send({
+        embed: {
+          color: constants.FAIL_COL,
+          description: `Your tip to <@${
+            receiverProfile.userID
+          }> ${valueInEther} ${
+            argSymbol ?? "SYS"
+          } has failed.\n${explorerLink}`,
         },
       });
     });
