@@ -326,7 +326,7 @@ switch (command) {
     if (message.channel.id == config.tipChannel
         || message.channel.type === "dm") {
           console.log("withdawal args", args);
-      if(args.length === 3 && args[2] === "nevm") {
+      if(args.length >= 3 && args[2] === "nevm") {
         return nevm.withdraw(client, message, args, provider);
       }
       withdraws.withdraw(args, message, client, HDSigner, syscoinjs)
