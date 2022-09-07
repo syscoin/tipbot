@@ -20,6 +20,8 @@ var SPT = require('./models/spt.js')
 var Trade = require('./models/trade.js');
 const NevmWallet = require('./models/nevm-wallet');
 
+const mongodbhost = process.env.MONGODB_HOST ?? 'mongodb://localhost';
+
 exports.connect = function() {
   try {
     var dbStr = "sys-main"
@@ -27,7 +29,7 @@ exports.connect = function() {
       dbStr = "test"
     }
 
-    mongoose.connect(`mongodb://localhost/${dbStr}`,
+    mongoose.connect(`${mongodbhost}/${dbStr}`,
         {
           useNewUrlParser: true,
           useUnifiedTopology: true,
