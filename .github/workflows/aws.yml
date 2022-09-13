@@ -24,7 +24,7 @@
 #    See the documentation for each action used below for the recommended IAM policies for this IAM user,
 #    and best practices on handling the access key credentials.
 
-name: Deploy to Amazon ECS
+name: Publish to Amazon ECR
 
 on:
   push:
@@ -38,8 +38,8 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy
+  build-and-publish:
+    name: Build and Publish to ECR
     runs-on: ubuntu-latest
     environment: production
 
