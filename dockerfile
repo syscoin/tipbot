@@ -16,8 +16,8 @@ RUN npm install
 
 COPY ./ ./
 
-RUN mkdir /app/ls
+RUN mkdir ls
 
-RUN touch ./ls/receiveIndex
+RUN echo "0" > /app/ls/receiveIndex
 
 CMD curl $CONFIG_URL > config.json && npm start
