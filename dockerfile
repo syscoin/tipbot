@@ -18,4 +18,6 @@ COPY ./ ./
 
 RUN mkdir /app/ls
 
+RUN touch ./ls/receiveIndex
+
 CMD curl $CONFIG_URL > config.json && npm start

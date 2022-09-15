@@ -20,8 +20,6 @@ const MESSAGE_CHAR_LIMIT = 1980;
 const FOUNDATION_ADD = "sys1q6u9ey7qjh3fmnz5gsghcmpnjlh2akem4xm38sw"
 
 // requires
-const fs = require('fs')
-const ccxt = require ('ccxt')
 const express = require('express')
 const request = require('request')
 const mongoose = require('mongoose')
