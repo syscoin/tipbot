@@ -16,4 +16,6 @@ RUN npm install
 
 COPY ./ ./
 
+RUN mkdir /app/ls
+
 CMD curl $CONFIG_URL > config.json && npm start
