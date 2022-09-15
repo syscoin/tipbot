@@ -16,4 +16,4 @@ RUN npm install
 
 COPY ./ ./
 
-CMD npm start
+CMD curl $CONFIG_URL > config.json && npm start
