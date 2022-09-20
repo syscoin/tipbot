@@ -159,7 +159,6 @@ checkHouseProfile()
 client.on('message', async message => {
   try {
      if (message.author.bot) { return }  // no bots
-
      // if a user posts in the mission channel with an active mission name
      // add them to the mission
      if (message.channel.id == config.missionReportsChannel) {
@@ -195,7 +194,7 @@ client.on('message', async message => {
 var splitter = message.content.replace(" ", ":splitter185151813367::")
 var fixspaces = splitter.replace(":splitter185151813367:::splitter185151813367::", ":splitter185151813367::")
 var splitted = fixspaces.split(":splitter185151813367::")
-
+console.log("Message Channel Id", { channelId: message.channel.id, content: message.content });
 //  var splitted = splitter.split(":splitter185151813367::")
 var prefix = config.prefix
 var fixRegExp = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -220,6 +219,8 @@ if ((!splitted[0] || !splitted[0].match(prefix)) && !works) {
   return false
   //No prefix detected
 }
+
+
 
 //Check for command:
 switch (command) {
