@@ -20,6 +20,6 @@ RUN mkdir ls
 
 RUN echo "0" > /app/ls/receiveIndex
 
-COPY ./entrypoint.sh ./entrypoint.sh
+COPY entrypoint.sh /app/entrypoint.sh
 
-ENTRYPOINT [ "/bin/bash", " ./entrypoint.sh" ]
+ENTRYPOINT [ "/bin/bash", "/app/entrypoint.sh" ]
