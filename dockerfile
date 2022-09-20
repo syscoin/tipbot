@@ -20,4 +20,6 @@ RUN mkdir ls
 
 RUN echo "0" > /app/ls/receiveIndex
 
-CMD echo $CONFIG_BASE64 | jq '@base64d | fromjson' > config.json && npm start
+COPY ./entrypoint.sh ./entrypoint.sh
+
+ENTRYPOINT [ "/bin/bash", " ./entrypoint.sh" ]
