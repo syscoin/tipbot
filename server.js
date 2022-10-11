@@ -258,7 +258,7 @@ switch (command) {
   case "dep":
   case "deposit":
     try {
-      if(args.length > 0 && args[0] === "nevm") {
+      if(args.length > 0 && args[0].toLowerCase() === "nevm") {
         return nevm.deposit(message)
       }
       var myProfile = await db.getProfile(message.author.id)
@@ -325,7 +325,7 @@ switch (command) {
     if (message.channel.id == config.tipChannel
         || message.channel.type === "dm") {
           console.log("withdawal args", args);
-      if(args.length >= 3 && args[2] === "nevm") {
+      if(args.length >= 3 && args[2].toLocaleLowerCase() === "nevm") {
         return nevm.withdraw(client, message, args, provider);
       }
       withdraws.withdraw(args, message, client, HDSigner, syscoinjs)
@@ -344,7 +344,7 @@ switch (command) {
           || message.channel.id == config.giveawayChannel
           || message.channel.type == "dm") {
 
-        if(args.length > 0 && args[0] === "nevm") {
+        if(args.length > 0 && args[0].toLowerCase() === "nevm") {
           return nevm.balance(client, message, args, provider)
         }
 
@@ -807,7 +807,7 @@ switch (command) {
         return
       }
 
-      if (args[2] === "nevm") {
+      if (args[2].toLocaleLowerCase() === "nevm") {
         return await nevm.send(
           client,
           message,
@@ -834,7 +834,7 @@ switch (command) {
           || message.channel.id == config.giveawayChannel
           || message.channel.type === "dm") {
 
-        if(args.length > 0 && args[0] === "nevm") {
+        if(args.length > 0 && args[0].toLowerCase() === "nevm") {
           return nevm.register(client, message, args)
         }
 
