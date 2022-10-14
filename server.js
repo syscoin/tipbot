@@ -226,26 +226,51 @@ if ((!splitted[0] || !splitted[0].match(prefix)) && !works) {
 switch (command) {
   case "help":
 
-    switch(message.channel.id) {
+    switch (message.channel.id) {
       case config.tradeChannel:
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: constants.help("trade")}})
-        break
+        message.channel.send({
+          embed: { color: c.SUCCESS_COL, description: constants.help("trade") },
+        });
+        break;
 
       case config.auctionChannel:
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: constants.help("auction")}})
-        break
+        message.channel.send({
+          embed: {
+            color: c.SUCCESS_COL,
+            description: constants.help("auction"),
+          },
+        });
+        break;
 
       case config.missionChannel:
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: constants.help("mission")}})
-        break
+        message.channel.send({
+          embed: {
+            color: c.SUCCESS_COL,
+            description: constants.help("mission"),
+          },
+        });
+        break;
 
-      case config.tipChannel:
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: constants.help("main")}})
-        break
-
+      case config.tipChannel: 
       default:
-        message.author.send({embed: { color: c.SUCCESS_COL, description: constants.help("main")}})
-        break
+        {
+          if (args.length > 0 && args[0].toLowerCase() === "nevm") {
+            message.channel.send({
+              embed: {
+                color: c.SUCCESS_COL,
+                description: constants.help("main-nevm"),
+              },
+            });
+          } else {
+            message.channel.send({
+              embed: {
+                color: c.SUCCESS_COL,
+                description: constants.help("main"),
+              },
+            });
+          }
+          break;
+        }
     }
     break
 

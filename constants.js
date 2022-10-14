@@ -1,12 +1,12 @@
 //Changing variable - Only for prefix code
-const config = require('./config.json')
-const prefix = config.prefix
+const config = require("./config.json");
+const prefix = config.prefix;
 
 //Constant variables - Will not and should not be changed in the code
 function getHelpCommands(parm) {
-  switch(parm) {
+  switch (parm) {
     case "main":
-    return `
+      return `
       **Main Commands**
       ~~--------------------~~
       **\`${prefix}register\`**  Creates a ${config.botname} profile to send/receive ${config.ctick} and Syscoin Platform Tokens (SPTs)!
@@ -21,8 +21,25 @@ function getHelpCommands(parm) {
 
       **\`${prefix}foundation\`**  Find out more about the Syscoin Foundation.
 
+      **\`${prefix}help nevm\`**  Show help NEVM commands
+
           `;
-    break
+
+    case "main-nevm": {
+      return `**Main NEVM Commands**
+      ~~--------------------~~
+      **\`${prefix}register nevm\`**  Creates a ${config.botname} NEVM profile to send/receive ${config.ctick} and Syscoin Platform Tokens (SPTs)!
+
+      **\`${prefix}balance nevm [token-name]\`**  Views your current ${config.ctick} balance. If [token-name] is provided, will give out balance for certain token.
+
+      **\`${prefix}deposit nevm\`**  Gets your ${config.ctick} deposit address.
+
+      **\`${prefix}withdraw [address] [amount] nevm [token-name]\`**  Withdraw ${config.ctick} or tokens to your personal wallet address.
+
+      **\`${prefix}tip @user [amount] nevm [token-name]\`**  Send some ${config.ctick} or tokens to another user.
+      
+          `;
+    }
 
     case "trade":
       return `
@@ -37,7 +54,7 @@ function getHelpCommands(parm) {
         **\`${prefix}recent <symbol/guid>\`**  Lists some recent trades. Symbol/guid is optional; if included the list will only show trades with those tokens.
 
             `;
-      break
+      break;
 
     case "auction":
       return `
@@ -60,7 +77,7 @@ function getHelpCommands(parm) {
             `;
 
     case "mission":
-    return `
+      return `
 
       **Mission Commands**
       ~~------------~~
@@ -89,7 +106,7 @@ function getHelpCommands(parm) {
 
       `;
 
-      break
+      break;
 
     case "admin":
       return `
@@ -112,11 +129,11 @@ function getHelpCommands(parm) {
       **\`${prefix}verifytoken [guid] [chosenSymbol] <linkToNFT>\`** Verify a SPT so users can refer to it using the chosen symbol rather than guid. If a link to the NFT is included, the NFT will be embedded within auctions/trades/giveaways.
 
       `;
-    break
+      break;
     default:
   }
 }
 
 module.exports = {
-    help: getHelpCommands
-}
+  help: getHelpCommands,
+};
