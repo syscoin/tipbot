@@ -194,14 +194,14 @@ client.on('message', async message => {
 var splitter = message.content.replace(" ", ":splitter185151813367::")
 var fixspaces = splitter.replace(":splitter185151813367:::splitter185151813367::", ":splitter185151813367::")
 var splitted = fixspaces.split(":splitter185151813367::")
-console.log("Message Channel Id", { channelId: message.channel.id, content: message.content });
+
 //  var splitted = splitter.split(":splitter185151813367::")
 var prefix = config.prefix
 var fixRegExp = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 var re = new RegExp(fixRegExp)
 var command = splitted[0].replace(re, "")
 if (splitted[1]) {
-  var args = splitted[1].split(" ")
+  var args = splitted[1].split(" ").filter( a => a.length !== 0)
 }
 else {
  var args = false
@@ -805,6 +805,7 @@ switch (command) {
         message.channel.send({embed: { color: c.FAIL_COL, description: ":rolling_eyes::point_up: Sorry but this command only works in the public channel."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
+      console.log("Message Channel Id", { channelId: message.channel.id, content: message.content, args: args });
 
       var myProfile = await db.getProfile(message.author.id)
       if (myProfile.restricted) {
@@ -821,8 +822,9 @@ switch (command) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "You cannot tip yourself."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
-
+      console.log("tip amount", {arg: args[1], bn: new BigNumber(parseFloat(args[1]))});
       args[1] = new BigNumber(args[1])
+      
       if (args[1].isNaN()) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "Please ensure you have entered a valid number that is more than 0 for the tip amount."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
