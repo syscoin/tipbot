@@ -117,7 +117,7 @@ async function send(
     maxPriorityFeePerGas: parseUnits("2", "gwei"),
   };
 
-  if (argSymbol) {
+  if (argSymbol && argSymbol.toUpperCase() !== "SYS") {
     const tokenSymbol = argSymbol;
     const token = config.nevm.supportedTokens.find(
       (token) => token.symbol === tokenSymbol.toUpperCase()

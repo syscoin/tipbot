@@ -17,6 +17,7 @@ const getTokenBalance = (provider, tokenSymbol, walletAddress) => {
   const token = config.nevm.supportedTokens.find(
     (token) => token.symbol === tokenSymbol.toUpperCase()
   );
+
   if (!token) {
     return undefined;
   }
@@ -82,12 +83,13 @@ async function balance(client, message, args, jsonProvider) {
 
   const tokenSymbol = args.length > 1 ? args[1] : undefined;
 
-  if (tokenSymbol) {
+  if (tokenSymbol && tokenSymbol.toUpperCase() !== 'SYS') {
     balanceInWei = await getTokenBalance(
       jsonProvider,
       tokenSymbol,
       nevmWallet.address
     );
+    console.log("Token Balance", { balanceInWei });
     if (balanceInWei === undefined) {
       return message.channel.send({
         embed: {

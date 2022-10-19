@@ -173,7 +173,7 @@ async function withdraw(client, message, args, jsonRpc) {
   }
 
   let signedTransaction = null;
-  if (tokenSymbol) {
+  if (tokenSymbol && tokenSymbol.toUpperCase() !== 'SYS') {
     signedTransaction = await generateWithdrawSignedTransaction({
       tokenSymbol,
       message,
