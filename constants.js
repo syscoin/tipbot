@@ -30,7 +30,7 @@ function getHelpCommands(parm) {
       ~~--------------------~~
       **\`${prefix}register nevm\`**  Creates a ${config.botname} NEVM profile to send/receive ${config.ctick} and Syscoin Platform Tokens (SPTs)!
 
-      **\`${prefix}balance nevm [token-name]\`**  Views your current ${config.ctick} balance. If [token-name] is provided, will give out balance for certain token.
+      **\`${prefix}balance nevm \`**  Views your current ${config.ctick} balance and token balances.
 
       **\`${prefix}deposit nevm\`**  Gets your ${config.ctick} deposit address.
 

@@ -81,35 +81,30 @@ async function balance(client, message, args, jsonProvider) {
 
   let balanceInWei = undefined;
 
-  const tokenSymbol = args.length > 1 ? args[1] : undefined;
-
-  if (tokenSymbol && tokenSymbol.toUpperCase() !== 'SYS') {
-    balanceInWei = await getTokenBalance(
-      jsonProvider,
-      tokenSymbol,
-      nevmWallet.address
-    );
-    console.log("Token Balance", { balanceInWei });
-    if (balanceInWei === undefined) {
-      return message.channel.send({
-        embed: {
-          color: constants.FAIL_COL,
-          description: `Hi, **<@${userId}>** \n*${tokenSymbol.toUpperCase()}* is not supported.`,
-        },
-      });
-    }
-  } else {
-    balanceInWei = await jsonProvider.getBalance(nevmWallet.address);
-  }
+  balanceInWei = await jsonProvider.getBalance(nevmWallet.address);
+  const tokenBalances = await Promise.all(
+    config.nevm.supportedTokens.map(async (token) => {
+      const balance = await getTokenBalance(
+        jsonProvider,
+        token.symbol,
+        nevmWallet.address
+      );
+      return { token, balance };
+    })
+  );
+  const tokenBalancesStr = tokenBalances.map(
+    ({ token, balance }) =>
+      `${utils.getNevmExplorerLink(token.address, 'token', token.symbol)}: ${ethers.utils.formatEther(balance)}`
+  );
 
   const balanceInEth = ethers.utils.formatEther(balanceInWei);
 
   user.send({
     embed: {
       color: constants.SUCCESS_COL,
-      description: `Hi, **<@${userId}>** Your balance is ${balanceInEth} ${(
-        tokenSymbol ?? "SYS"
-      ).toUpperCase()}.`,
+      description: `Hi, **<@${userId}>** Your balance is ${balanceInEth} SYS. \n ${tokenBalancesStr.join(
+        "\n"
+      )}`,
     },
   });
 

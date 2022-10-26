@@ -231,7 +231,7 @@ exports.getNevmExplorerLink = function (data, type, title) {
       return `[${title}](${nevmExplorerURL}/address/${data})`;
 
     case "token":
-      return `[${currencyStr}](${nevmExplorerURL}/token/${data})`;
+      return `[${title}](${nevmExplorerURL}/token/${data})`;
 
     case "transaction":
       return `[${title}](${nevmExplorerURL}/tx/${data})`;
