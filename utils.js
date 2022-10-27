@@ -13,6 +13,7 @@ const DateTime = lux.DateTime
 const c = require('./c.json')
 const config = require('./config.json')
 const backendURL = config.blockURL
+const nevmExplorerURL = config.nevm.explorerURL;
 
 const sjs = require('syscoinjs-lib')
 const BN = sjs.utils.BN
@@ -216,6 +217,26 @@ exports.getExpLink = async function(data, type, title) {
     return error
   }
 }
+
+/**
+ * 
+ * @param {string} data wallet address or token contract address or transaction hash
+ * @param {('address'|'token'|'transaction')} type 
+ * @param {string} title 
+ * @returns 
+ */
+exports.getNevmExplorerLink = function (data, type, title) {
+  switch (type) {
+    case "address":
+      return `[${title}](${nevmExplorerURL}/address/${data})`;
+
+    case "token":
+      return `[${title}](${nevmExplorerURL}/token/${data})`;
+
+    case "transaction":
+      return `[${title}](${nevmExplorerURL}/tx/${data})`;
+  }
+};
 
 // unlocks an amount in a user's balance (locking used in auctions/trades
 // to ensure users can't move their locked funds to cheat the system)

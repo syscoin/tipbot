@@ -26,5 +26,12 @@
   "maxItems": 15,
   "testnet": false,
   "blockURL": "",
-  "mnemonic": ""
+  "mnemonic": "",
+  "nevm": {
+        "rpcUrl": "",
+        "mnemonic": "",
+        "explorerURL": "",
+        "gasLimit": 22000,
+        "chainId": 57
+    }
 }

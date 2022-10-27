@@ -20,13 +20,18 @@ const MESSAGE_CHAR_LIMIT = 1980;
 const FOUNDATION_ADD = "sys1q6u9ey7qjh3fmnz5gsghcmpnjlh2akem4xm38sw"
 
 // requires
-const fs = require('fs')
-const ccxt = require ('ccxt')
 const express = require('express')
 const request = require('request')
 const mongoose = require('mongoose')
 const base64 = require('js-base64')
 const axios = require('axios')
+const HDWallet = require('ethereum-hdwallet');
+const ethers = require('ethers')
+
+const provider = new ethers.providers.JsonRpcProvider(config.nevm.rpcUrl)
+const wallet = new ethers.Wallet.fromMnemonic(config.nevm.mnemonic);
+
+const signer = provider.getSigner()
 
 const BigNumber = require('bignumber.js')
 BigNumber.config({ DECIMAL_PLACES: 8 })
@@ -60,6 +65,10 @@ const sjs = require('syscoinjs-lib')
 const backendURL = config.blockURL
 // 'null' for no password encryption for local storage and 'true' for testnet
 const HDSigner = new sjs.utils.HDSigner(config.mnemonic, null, config.testnet)
+const hdWallet = HDWallet.fromMnemonic(config.nevm.mnemonic).derive(HDWallet.DefaultHDPath);
+
+
+
 var receiveIndex = ls.get("receiveIndex")
 if (receiveIndex) {
   HDSigner.receivingIndex = Number(receiveIndex)
@@ -78,6 +87,7 @@ const tips = require('./tips.js')
 const trades = require('./trades.js')
 const utils = require('./utils.js')
 const withdraws = require('./withdraws.js')
+const nevm = require('./nevm')
 
 // Constants required
 const constants = require("./constants")
@@ -149,7 +159,6 @@ checkHouseProfile()
 client.on('message', async message => {
   try {
      if (message.author.bot) { return }  // no bots
-
      // if a user posts in the mission channel with an active mission name
      // add them to the mission
      if (message.channel.id == config.missionReportsChannel) {
@@ -192,7 +201,7 @@ var fixRegExp = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 var re = new RegExp(fixRegExp)
 var command = splitted[0].replace(re, "")
 if (splitted[1]) {
-  var args = splitted[1].split(" ")
+  var args = splitted[1].split(" ").filter( a => a.length !== 0)
 }
 else {
  var args = false
@@ -211,30 +220,57 @@ if ((!splitted[0] || !splitted[0].match(prefix)) && !works) {
   //No prefix detected
 }
 
+
+
 //Check for command:
 switch (command) {
   case "help":
 
-    switch(message.channel.id) {
+    switch (message.channel.id) {
       case config.tradeChannel:
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: constants.help("trade")}})
-        break
+        message.channel.send({
+          embed: { color: c.SUCCESS_COL, description: constants.help("trade") },
+        });
+        break;
 
       case config.auctionChannel:
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: constants.help("auction")}})
-        break
+        message.channel.send({
+          embed: {
+            color: c.SUCCESS_COL,
+            description: constants.help("auction"),
+          },
+        });
+        break;
 
       case config.missionChannel:
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: constants.help("mission")}})
-        break
+        message.channel.send({
+          embed: {
+            color: c.SUCCESS_COL,
+            description: constants.help("mission"),
+          },
+        });
+        break;
 
-      case config.tipChannel:
-        message.channel.send({embed: { color: c.SUCCESS_COL, description: constants.help("main")}})
-        break
-
+      case config.tipChannel: 
       default:
-        message.author.send({embed: { color: c.SUCCESS_COL, description: constants.help("main")}})
-        break
+        {
+          if (args.length > 0 && args[0].toLowerCase() === "nevm") {
+            message.channel.send({
+              embed: {
+                color: c.SUCCESS_COL,
+                description: constants.help("main-nevm"),
+              },
+            });
+          } else {
+            message.channel.send({
+              embed: {
+                color: c.SUCCESS_COL,
+                description: constants.help("main"),
+              },
+            });
+          }
+          break;
+        }
     }
     break
 
@@ -247,6 +283,9 @@ switch (command) {
   case "dep":
   case "deposit":
     try {
+      if(args.length > 0 && args[0].toLowerCase() === "nevm") {
+        return nevm.deposit(message)
+      }
       var myProfile = await db.getProfile(message.author.id)
       if (myProfile) {
         let desc = `Hi, **<@${message.author.id}>** Any coins/tokens sent to this address will be added to your ${config.botname} balance within a few minutes.` +
@@ -310,6 +349,10 @@ switch (command) {
 
     if (message.channel.id == config.tipChannel
         || message.channel.type === "dm") {
+          console.log("withdawal args", args);
+      if(args.length >= 3 && args[2].toLocaleLowerCase() === "nevm") {
+        return nevm.withdraw(client, message, args, provider);
+      }
       withdraws.withdraw(args, message, client, HDSigner, syscoinjs)
     }
     break
@@ -318,7 +361,6 @@ switch (command) {
   case "balance":
     // used to check a user's balance and to deposit tokens if they have any in their deposit address
     // will then change the deposit address to a new receive address
-
     try {
       if (message.channel.id == config.tipChannel
           || message.channel.id == config.tradeChannel
@@ -326,6 +368,10 @@ switch (command) {
           || message.channel.id == config.missionChannel
           || message.channel.id == config.giveawayChannel
           || message.channel.type == "dm") {
+
+        if(args.length > 0 && args[0].toLowerCase() === "nevm") {
+          return nevm.balance(client, message, args, provider)
+        }
 
         // get the relevant profile's info
         const userProfile = await db.getProfile(message.author.id)
@@ -759,6 +805,7 @@ switch (command) {
         message.channel.send({embed: { color: c.FAIL_COL, description: ":rolling_eyes::point_up: Sorry but this command only works in the public channel."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
+      console.log("Message Channel Id", { channelId: message.channel.id, content: message.content, args: args });
 
       var myProfile = await db.getProfile(message.author.id)
       if (myProfile.restricted) {
@@ -775,8 +822,9 @@ switch (command) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "You cannot tip yourself."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
       }
-
+      console.log("tip amount", {arg: args[1], bn: new BigNumber(parseFloat(args[1]))});
       args[1] = new BigNumber(args[1])
+      
       if (args[1].isNaN()) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "Please ensure you have entered a valid number that is more than 0 for the tip amount."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
@@ -784,6 +832,17 @@ switch (command) {
       if (args[1].lt(config.tipMin)) {
         message.channel.send({embed: { color: c.FAIL_COL, description: "You must tip at least " + config.tipMin + " " + config.ctick + ". Too much dust will make it messy in here."}}).then(msg => {utils.deleteMsgAfterDelay(msg, 15000)})
         return
+      }
+
+      if (args[2].toLocaleLowerCase() === "nevm") {
+        return await nevm.send(
+          client,
+          message,
+          args,
+          myProfile,
+          await ifProfile(receiver.id),
+          provider
+        );
       }
 
       let tipSuccess = await tips.tipUser(args, myProfile, await ifProfile(receiver.id), false, client, message)
@@ -794,7 +853,6 @@ switch (command) {
 
   case "reg":
   case "register":
-    // registers a user with the tipbot
     try {
       if (message.channel.id == config.tipChannel
           || message.channel.id == config.tradeChannel
@@ -802,6 +860,10 @@ switch (command) {
           || message.channel.id == config.missionChannel
           || message.channel.id == config.giveawayChannel
           || message.channel.type === "dm") {
+
+        if(args.length > 0 && args[0].toLowerCase() === "nevm") {
+          return nevm.register(client, message, args)
+        }
 
         let profileExists = await ifProfile(message.author.id)
         if (profileExists) {

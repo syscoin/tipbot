@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  node:
+    restart: always
+    build: .
+    environment:
+      MONGODB_HOST: mongodb://mongo:27017
+    volumes:
+      - ./:/app
+      - /app/node_modules
+  mongo:
+    image: mongo
+    volumes:
+      - mongodb:/data/db
+    ports:
+      - 27017:27017
+volumes:
+  mongodb:
