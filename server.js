@@ -81,7 +81,6 @@ const auctions = require("./auctions.js");
 const endWatcher = require("./endWatcher.js")(client);
 const giveaways = require("./giveaway.js");
 const missions = require("./missions.js");
-const missionsNevm = require("./nevm/missions");
 const qr = require("./qr.js");
 const tips = require("./tips.js");
 const trades = require("./trades.js");
@@ -166,7 +165,6 @@ const checkHouseProfile = async () => {
 checkHouseProfile();
 
 client.on("message", async (message) => {
-  // console.log({message});
   try {
     if (message.author.bot) {
       return;
@@ -174,62 +172,7 @@ client.on("message", async (message) => {
     // if a user posts in the mission channel with an active mission name
     // add them to the mission
     if (message.channel.id == config.missionReportsChannel) {
-      try {
-        var missionName = message.content.trim().split(/\s+/);
-        missionName[0] = missionName[0].toUpperCase();
-        var mission = await db.getMission(missionName[0]);
-        if (mission) {
-          if (mission.active) {
-            try {
-              let missionUpdated = await db.addProfileToMission(
-                message.author.id,
-                missionName[0]
-              );
-              utils.isSuccessMsgReact(true, message);
-              console.log(
-                `Added ${message.author.id} to mission ${missionName}`
-              );
-            } catch (error) {
-              utils.isSuccessMsgReact(false, message);
-              console.log(
-                `Error adding ${message.author.id} to mission ${missionName}`
-              );
-              console.log(error);
-            }
-          } else {
-            utils.isSuccessMsgReact(false, message);
-            message.channel
-              .send({
-                embed: {
-                  color: c.FAIL_COL,
-                  description: `Mission ${missionName[0]} is no longer active.`,
-                },
-              })
-              .then((msg) => {
-                utils.deleteMsgAfterDelay(msg, 15000);
-              });
-          }
-        } else {
-          console.log(`Mission ${missionName} not found`);
-        }
-      } catch (error) {
-        utils.isSuccessMsgReact(false, message);
-        console.log(error);
-        message.channel
-          .send({
-            embed: {
-              color: c.FAIL_COL,
-              description: "Error adding to mission.",
-            },
-          })
-          .then((msg) => {
-            utils.deleteMsgAfterDelay(msg, 15000);
-          });
-      }
-    }
-
-    if (message.channel.id === config.missionNevmChannel) {
-      return missionsNevm.router(client, message);
+      await missions.reportSubmit(message);
     }
 
     var splitter = message.content.replace(" ", ":splitter185151813367::");

@@ -1,3 +1,5 @@
+const config = require('../../config.json');
+
 /**
  * Extracts Command and Arguments from message content
  * @param {Discord.Message} message
