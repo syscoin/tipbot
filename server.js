@@ -852,7 +852,7 @@ client.on("message", async (message) => {
       case "paymission":
         // pay mission
         if (message.channel.id == config.missionChannel) {
-          missions.payMission(args, message, client);
+          missions.payMission(args, message, client, false, provider);
         }
         break;
 

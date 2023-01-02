@@ -22,6 +22,16 @@ const erc20Abi = [
 const getErc20Contract = (address, provider) =>
   new ethers.Contract(address, erc20Abi, provider);
 
+const distributorAbi = [
+  // Authenticated Functions
+  "function distribute(address[] receivers, uint256 amountPerReceiver) public payable",
+  // Events
+  "event Distribute(address from, uint256 amount, address[] receivers)",
+];
+
+const getDistributorContract = (address, provider) =>
+  new ethers.Contract(address, distributorAbi, provider);
 module.exports = {
   getErc20Contract,
+  getDistributorContract,
 };

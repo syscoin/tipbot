@@ -12,7 +12,8 @@ var prefix = config.prefix;
 const db = require("./db.js");
 const utils = require("./utils.js");
 const tips = require("./tips.js");
-const ethers = require('ethers');
+const ethers = require("ethers");
+const { getDistributorContract } = require("./nevm/utils/contract");
 
 // split array
 function arraySplit(list, howMany) {
@@ -157,7 +158,7 @@ exports.createOrEditMission = async function (args, message, client, edit) {
     var amountStr = ["payout", "time amount"];
     var amounts = [payoutBig, timeMilliSeconds];
 
-    console.log({amounts});
+    console.log({ amounts });
 
     var suggester = message.mentions.users.first();
     var suggesterID = null;
@@ -254,7 +255,7 @@ exports.createOrEditMission = async function (args, message, client, edit) {
     let value = ethers.utils.parseEther(payoutBig.toString());
     let suggestValue = null;
     if (suggester) {
-      suggestValue =  ethers.utils.parseEther(suggesterPayout.toString());
+      suggestValue = ethers.utils.parseEther(suggesterPayout.toString());
     }
     let missionNew;
     if (!edit) {
@@ -269,7 +270,7 @@ exports.createOrEditMission = async function (args, message, client, edit) {
       );
     } else {
       const existingMission = await db.getMission(missionName);
-      if(!existingMission.nevm) {
+      if (!existingMission.nevm) {
         value = utils.toSats(payoutBig, decimals);
         if (suggester) {
           suggestValue = utils.toSats(suggesterPayout, decimals);
@@ -668,8 +669,9 @@ exports.printMissionDetails = async function (args, message, client) {
       decimals = 8;
     }
 
-    var payout = new BigNumber(mission.reward);
-    var payoutWhole = utils.toWholeUnit(payout, decimals);
+    const payoutWhole = mission.nevm
+      ? ethers.utils.formatEther(mission.reward)
+      : utils.toWholeUnit(new BigNumber(mission.reward), decimals);
 
     var missionProfiles = await db.getMissionProfiles(missionName);
     var txtUsers = "";
@@ -941,13 +943,179 @@ const utxoPaymission = async (mission, message, client) => {
   exports.archiveMission(args, message, client, true);
 };
 
-// pays out the previously specified rewards to the participants in the given mission
 /**
+ *
+ * @param {Discord.Message} message
+ * @param {string} missionName
+ * @returns {Promise<any[]>} profiles
+ */
+const getMissionProfiles = async (message, missionName) => {
+  const missionProfiles = await db.getMissionProfiles(missionName);
+  return missionProfiles;
+  // Todo: remove later
+  // return missionProfiles.filter(
+  //   (profile) => profile.userID !== message.author.id
+  // );
+};
+
+/**
+ *
+ * @param {Discord.Message} message
+ */
+const sendInvalidParticipationMessage = (message) => {
+  message.channel.send({
+    embed: {
+      color: c.FAIL_COL,
+      description: "Nobody took part in the mission, there's nobody to pay!",
+    },
+  });
+};
+
+/**
+ *
+ * @param {Discord.Message} message
+ */
+const sendInvalidTipMessage = (message) => {
+  message.channel.send({
+    embed: {
+      color: c.FAIL_COL,
+      description:
+        "The mission payout per participant is below the minimum tip amount on the tipbot.",
+    },
+  });
+};
+
+/**
+ *
+ * @param {Discord.Message} message
+ * @param {} mission
+ */
+const sendNotEnoughBalanceMessage = (message, mission) => {
+  message.channel.send({
+    embed: {
+      color: c.FAIL_COL,
+      description: `Sorry, you don't have enough funds to pay the mission: ${mission.missionID}!`,
+    },
+  });
+};
+
+/**
+ *
+ * @param {string} senderAddress
+ * @param {string[]} addressList
+ * @param {ethers.ethers.BigNumber} amountPerReceiver
+ * @param {ethers.ethers.BigNumber} value To be sent to contract
+ * @param {ethers.ethers.providers.JsonRpcProvider} jsonProvider
+ */
+const generateDistributeFundsTransaction = async (
+  creatorAddress,
+  addressList,
+  amountPerReceiver,
+  value,
+  jsonRpc
+) => {
+  const nonce = await jsonRpc.getTransactionCount(creatorAddress);
+
+  const transactionConfig = {
+    type: 2,
+    chainId: config.nevm.chainId,
+    nonce,
+    value,
+    gasLimit: config.nevm.distributor.gasLimit,
+    maxFeePerGas: ethers.utils.parseUnits("2.56", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("2.5", "gwei"),
+  };
+  const distributorContract = getDistributorContract(
+    config.nevm.distributor.address,
+    jsonRpc
+  );
+
+  const distributeTransactionConfig =
+    await distributorContract.populateTransaction.distribute(
+      addressList, //addressList.map((address) => `"${address}"`),
+      amountPerReceiver,
+      { value }
+    );
+
+  return {
+    ...transactionConfig,
+    value,
+    ...distributeTransactionConfig,
+  };
+};
+
+/**
+ *
+ * @param {string} privateKey
+ * @param {ethers.ethers.PopulatedTransaction} transactionConfig
+ * @param {ethers.ethers.providers.JsonRpcProvider} jsonRpc
+ */
+const sendTransaction = async (privateKey, transactionConfig, jsonRpc) => {
+  const wallet = new ethers.Wallet(privateKey, jsonRpc);
+  const signedTransaction = await wallet.signTransaction(transactionConfig);
+  return jsonRpc.sendTransaction(signedTransaction);
+};
+
+/**
+ *
+ * @param {Discord.Client} client
+ * @param {string} totalAmount
+ * @param {string} currencyStr
+ * @param {string[]} userList
+ */
+const sendPayoutmessage = (
+  client,
+  totalAmount,
+  dividedAmount,
+  currencyStr,
+  missionName,
+  userList,
+  extraMessage
+) => {
+  const payoutChannel = client.channels.cache.get(config.missionPayOutsChannel);
+  payoutChannel.send({
+    embed: {
+      color: c.SUCCESS_COL,
+      description:
+        ":fireworks: :moneybag: Paid **" +
+        dividedAmount +
+        " " +
+        currencyStr +
+        "** to " +
+        userList.length +
+        " users (Total = " +
+        totalAmount.toString() +
+        " " +
+        currencyStr +
+        ") in mission **" +
+        missionName +
+        "** listed below:\n\n" +
+        userList.map((userId) => `<@${userId}>`).join("\n") +
+        (extraMessage ?? ""),
+    },
+  });
+};
+
+/**
+ *  pays out the previously specified rewards to the participants in the given mission
  * command: !pay <missionID>
  * args
  * 0 - missionID (optional)
+ *
+ * @param {string[]} args
+ * @param {Discord.Message} message
+ * @param {Discord.Client} client
+ * @param {boolean} automated
+ * @param {ethers.ethers.providers.JsonRpcProvider} jsonRpc
+ * @returns
  */
-exports.payMission = async function (args, message, client, automated) {
+exports.payMission = async function (
+  args,
+  message,
+  client,
+  automated,
+  jsonRpc
+) {
   try {
     if (!automated) {
       if (!utils.checkMissionRole(message)) {
@@ -988,7 +1156,97 @@ exports.payMission = async function (args, message, client, automated) {
       return utxoPaymission(mission, message, client);
     }
 
+    const creatorWallet = await db.nevm.getNevmWallet(mission.creator);
 
+    const rewardInWei = ethers.utils.parseUnits(mission.reward, "wei");
+
+    const balanceInWei = await jsonRpc.getBalance(creatorWallet.address);
+
+    if (balanceInWei.lt(rewardInWei)) {
+      sendNotEnoughBalanceMessage(message, mission);
+      return;
+    }
+
+    const missionProfiles = await getMissionProfiles(message, missionName);
+
+    if (missionProfiles.length === 0) {
+      sendInvalidParticipationMessage(message, mission);
+      exports.archiveMission([mission.missionID], message, client, true);
+      return;
+    }
+
+    const rewardDividedInWei = rewardInWei.div(missionProfiles.length);
+
+    const minimumTipInWei = ethers.utils.parseEther(`${config.tipMin}`);
+
+    if (rewardDividedInWei.lt(minimumTipInWei)) {
+      sendInvalidTipMessage(message);
+      return;
+    }
+
+    const nevmWallets = await Promise.all(
+      missionProfiles.map((profile) => db.nevm.getNevmWallet(profile.userID))
+    );
+
+    const addressList = nevmWallets.map((wallet) => wallet.address);
+    console.log({
+      creator: creatorWallet.address,
+      addressList,
+      rewardDividedInWei,
+      rewardInWei,
+    });
+    const distributeTransactionConfig =
+      await generateDistributeFundsTransaction(
+        creatorWallet.address,
+        addressList,
+        rewardDividedInWei,
+        rewardInWei,
+        jsonRpc
+      );
+    console.log({ distributeTransactionConfig });
+    const creatorUser = await client.users.fetch(mission.creator);
+    await sendTransaction(
+      creatorWallet.privateKey,
+      distributeTransactionConfig,
+      jsonRpc
+    )
+      .then((response) => {
+        console.log(`Mission Payout sent for: ${mission.missionID}!`);
+        const explorerLink = utils.getNevmExplorerLink(
+          response.hash,
+          "transaction",
+          "Click Here to View Transaction"
+        );
+        creatorUser.send({
+          embed: {
+            color: c.SUCCESS_COL,
+            description: `Payout distribution for mission: ${
+              mission.missionID
+            } for ${ethers.utils.formatEther(
+              rewardInWei
+            )} SYS. Please wait for it to be mined.\n${explorerLink}`,
+          },
+        });
+        return response.wait(1);
+      })
+      .then((receipt) => {
+        const explorerLink = utils.getNevmExplorerLink(
+          receipt.transactionHash,
+          "transaction",
+          "Click Here to View Transaction"
+        );
+        sendPayoutmessage(
+          client,
+          ethers.utils.formatEther(rewardInWei),
+          ethers.utils.formatEther(rewardDividedInWei),
+          mission.currencyID,
+          mission.missionID,
+          missionProfiles.map((profile) => profile.userID),
+          `\n\n${explorerLink}`
+        );
+
+        exports.archiveMission(args, message, client, true);
+      });
   } catch (error) {
     console.log(error);
     message.channel.send({
@@ -1109,9 +1367,7 @@ exports.reportSubmit = async (message) => {
             missionName[0]
           );
           utils.isSuccessMsgReact(true, message);
-          console.log(
-            `Added ${message.author.id} to mission ${missionName}`
-          );
+          console.log(`Added ${message.author.id} to mission ${missionName}`);
         } catch (error) {
           utils.isSuccessMsgReact(false, message);
           console.log(
@@ -1149,4 +1405,4 @@ exports.reportSubmit = async (message) => {
         utils.deleteMsgAfterDelay(msg, 15000);
       });
   }
-}
+};
