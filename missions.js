@@ -14,6 +14,7 @@ const utils = require("./utils.js");
 const tips = require("./tips.js");
 const ethers = require("ethers");
 const { getDistributorContract } = require("./nevm/utils/contract");
+const { registerWallet } = require("./nevm/register");
 
 // split array
 function arraySplit(list, howMany) {
@@ -1362,6 +1363,24 @@ exports.reportSubmit = async (message) => {
     if (mission) {
       if (mission.active) {
         try {
+          if (mission.nevm) {
+            const wallet = await db.nevm.getNevmWallet(message.author.id);
+            if (!wallet) {
+              const infoMessage = await message.reply({
+                embed: {
+                  description: `It seems you don't have an NEVM wallet for this Mission.`,
+                },
+              });
+              await registerWallet(message.author.id);
+              await infoMessage.reply({
+                embed: {
+                  color: c.SUCCESS_COL,
+                  description: `Automatically created your NEVM Wallet. Please run \`!deposit nevm\` to check your addresss.`,
+                },
+              });
+            }
+          }
+
           let missionUpdated = await db.addProfileToMission(
             message.author.id,
             missionName[0]
