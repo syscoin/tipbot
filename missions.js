@@ -159,8 +159,6 @@ exports.createOrEditMission = async function (args, message, client, edit) {
     var amountStr = ["payout", "time amount"];
     var amounts = [payoutBig, timeMilliSeconds];
 
-    console.log({ amounts });
-
     var suggester = message.mentions.users.first();
     var suggesterID = null;
     var suggesterPayout = null;
@@ -1022,7 +1020,9 @@ const generateDistributeFundsTransaction = async (
     chainId: config.nevm.chainId,
     nonce,
     value,
-    gasLimit: config.nevm.distributor.gasLimit,
+    gasLimit:
+      config.nevm.distributor.gasLimit +
+      addressList.length * config.nevm.distributor.additionalGasPerAddress,
     maxFeePerGas: ethers.utils.parseUnits("2.56", "gwei"),
     maxPriorityFeePerGas: ethers.utils.parseUnits("2.5", "gwei"),
   };
