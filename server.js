@@ -210,6 +210,10 @@ client.on("message", async (message) => {
 
     //Check for command:
     switch (command) {
+      case "msgdbg": {
+        console.log(message);
+        return;
+      }
       case "help":
         switch (message.channel.id) {
           case config.tradeChannel:
