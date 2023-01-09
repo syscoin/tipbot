@@ -19,6 +19,7 @@ const {
 } = require("./nevm/utils/contract");
 const { registerWallet } = require("./nevm/register");
 const { runTransaction } = require("./nevm/utils/transaction");
+const Log = require("./log");
 
 // split array
 function arraySplit(list, howMany) {
@@ -954,11 +955,12 @@ const utxoPaymission = async (mission, message, client) => {
  */
 const getMissionProfiles = async (message, missionName) => {
   const missionProfiles = await db.getMissionProfiles(missionName);
-  return missionProfiles;
-  // Todo: remove later
-  // return missionProfiles.filter(
-  //   (profile) => profile.userID !== message.author.id
-  // );
+  if (process.env.NODE_ENV === "development") {
+    return missionProfiles;
+  }
+  return missionProfiles.filter(
+    (profile) => profile.userID !== message.author.id
+  );
 };
 
 /**
@@ -1165,7 +1167,7 @@ const sendPayoutTransactions = async (
       approvalTransaction,
       jsonRpc
     ).then((resp) => resp.wait(1));
-    console.log({ approvalReceipt });
+    Log.debug({ approvalReceipt });
 
     const distributTokensTransaction =
       await generateDistributeTokensTransaction(
@@ -1310,9 +1312,9 @@ exports.payMission = async function (
             color: c.SUCCESS_COL,
             description: `Payout distribution for mission: ${
               mission.missionID
-            } for ${ethers.utils.formatEther(
-              rewardInWei
-            )} SYS. Please wait for it to be mined.\n${explorerLink}`,
+            } for ${ethers.utils.formatEther(rewardInWei)} ${
+              mission.currencyID
+            }. Please wait for it to be mined.\n${explorerLink}`,
           },
         });
         return response.wait(1);

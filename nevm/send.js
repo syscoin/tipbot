@@ -8,6 +8,7 @@ const config = require("../config.json");
 const prefix = config.prefix;
 const utils = require("../utils");
 const { getErc20Contract } = require("./utils/contract");
+const { runTransaction } = require("./utils/transaction");
 
 const SYS_EMOJI = ":boom:";
 
@@ -164,16 +165,13 @@ async function send(
     };
   }
 
-  const signedTransaction = await wallet.signTransaction(transactionConfig);
-
   console.log("Sending Transaction...", { transactionConfig });
   const valueInEther = formatEther(value);
 
   const sendUser = await client.users.fetch(senderProfile.userID);
   const receiveUser = await client.users.fetch(receiverProfile.userID);
 
-  jsonRpc
-    .sendTransaction(signedTransaction)
+  runTransaction(wallet.privateKey, transactionConfig, jsonRpc)
     .then((response) => {
       console.log("Transaction Sent!");
       const explorerLink = utils.getNevmExplorerLink(

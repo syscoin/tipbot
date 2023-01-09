@@ -1,8 +1,11 @@
 const ethers = require("ethers");
+const Log = require("../../log");
 const { getLatestNonce } = require("./nonce");
 
 const transactionQueue = [];
 let isProcessingTransaction = false;
+
+const SECOND = 1000;
 
 setInterval(() => {
   if (isProcessingTransaction || transactionQueue.length === 0) {
@@ -21,7 +24,7 @@ setInterval(() => {
       isProcessingTransaction = false;
       onReject(...args);
     });
-}, 1000);
+}, 1 * SECOND);
 
 /**
  * Sends transaction to queue
@@ -54,7 +57,7 @@ const sendTransaction = async (privateKey, transactionConfig, jsonRpc) => {
     ...transactionConfig,
     nonce,
   };
-  console.log("Processing transaction", configWithNonce);
+  Log.debug("Processing transaction", configWithNonce);
   const signedTransaction = await wallet.signTransaction(configWithNonce);
   return jsonRpc.sendTransaction(signedTransaction);
 };

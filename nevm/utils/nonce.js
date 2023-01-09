@@ -24,7 +24,7 @@ const getLatestNonce = async (address, jsonRpc) => {
     10
   );
   if (!nonce || nonce < latestNonce) {
-    nonce = latestNonce + 1;
+    nonce = latestNonce;
   }
   set(address, nonce + 1);
   return nonce;

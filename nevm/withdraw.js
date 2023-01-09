@@ -173,7 +173,7 @@ async function withdraw(client, message, args, jsonRpc) {
   }
 
   let signedTransaction = null;
-  if (tokenSymbol && tokenSymbol.toUpperCase() !== 'SYS') {
+  if (tokenSymbol && tokenSymbol.toUpperCase() !== "SYS") {
     signedTransaction = await generateWithdrawSignedTransaction({
       tokenSymbol,
       message,
@@ -229,8 +229,7 @@ async function withdraw(client, message, args, jsonRpc) {
         },
       });
     }
-
-    signedTransaction = await wallet.signTransaction({
+    const transactionConfig = {
       type: 2,
       chainId: config.nevm.chainId,
       to: address,
@@ -239,12 +238,11 @@ async function withdraw(client, message, args, jsonRpc) {
       nonce,
       maxFeePerGas,
       maxPriorityFeePerGas: etherUtils.parseUnits("2", "gwei"),
-    });
+    };
   }
 
   console.log("Sending Transaction...", wallet.address);
-  jsonRpc
-    .sendTransaction(signedTransaction)
+  runTransaction(wallet.privateKey, transactionConfig, jsonRpc)
     .then((response) => {
       console.log("Transaction Sent!");
       const explorerLink = utils.getNevmExplorerLink(
