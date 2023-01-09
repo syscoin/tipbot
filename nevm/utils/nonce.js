@@ -1,5 +1,6 @@
 var LocalStorage = require("node-localstorage").LocalStorage;
 localStorage = new LocalStorage("../../ls");
+const Log = require("../../log");
 var nonceMap = require("../../ls");
 
 const get = (address) => {
@@ -18,13 +19,13 @@ const set = (address, value) => {
 
 const getLatestNonce = async (address, jsonRpc) => {
   let nonce = get(address);
-  console.log({ savedNonce: nonce });
-  const latestNonce = parseInt(
+  const pendingNonce = parseInt(
     await jsonRpc.getTransactionCount(address, "pending"),
     10
   );
-  if (!nonce || nonce < latestNonce) {
-    nonce = latestNonce;
+  Log.debug({ savedNonce: nonce, pendingNonce });
+  if (!nonce || nonce < pendingNonce) {
+    nonce = pendingNonce;
   }
   set(address, nonce + 1);
   return nonce;
