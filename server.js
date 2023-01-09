@@ -90,6 +90,7 @@ const nevm = require("./nevm");
 
 // Constants required
 const constants = require("./constants");
+const Log = require("./log");
 
 // constant functions - split string
 const splitString = (string, prepend = "", append = "") => {
@@ -211,7 +212,7 @@ client.on("message", async (message) => {
     //Check for command:
     switch (command) {
       case "msgdbg": {
-        console.log(message);
+        Log.debug(message, message.member);
         return;
       }
       case "help":
