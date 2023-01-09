@@ -13,8 +13,12 @@ const db = require("./db.js");
 const utils = require("./utils.js");
 const tips = require("./tips.js");
 const ethers = require("ethers");
-const { getDistributorContract } = require("./nevm/utils/contract");
+const {
+  getDistributorContract,
+  getErc20Contract,
+} = require("./nevm/utils/contract");
 const { registerWallet } = require("./nevm/register");
+const { runTransaction } = require("./nevm/utils/transaction");
 
 // split array
 function arraySplit(list, howMany) {
@@ -65,32 +69,26 @@ exports.createOrEditMission = async function (args, message, client, edit) {
 
     let [missionName, payout, currency, timeArg] = args;
 
-    var gCurrency, currencyStr, token;
+    var gCurrency, currencyStr;
     var decimals = 8;
 
     // set up currency strings and get decimals for converting
     // between whole and sats later
     if (currency) {
       gCurrency = currency.toUpperCase();
-      if (gCurrency !== "SYS") {
-        var token;
-        let verifiedSPTLink = await db.getSPT(gCurrency);
-        if (verifiedSPTLink) {
-          token = await utils.getSPT(verifiedSPTLink.guid);
-        } else {
-          token = await utils.getSPT(gCurrency);
-        }
 
-        if (!token) {
+      if (gCurrency !== "SYS") {
+        const supportedToken = config.nevm.supportedTokens.find(
+          (token) => token.symbol === gCurrency
+        );
+        if (!supportedToken) {
           message.reply(
-            `Couldn't find the token: ${gCurrency}. Please ensure you entered the symbol/GUID correctly.`
+            `Couldn't find the token: ${gCurrency}. Please ensure you entered the symbol correctly.`
           );
           return;
         }
-
-        gCurrency = token.assetGuid;
-        decimals = token.decimals;
-        currencyStr = await utils.getExpLink(token.assetGuid, c.TOKEN);
+        decimals = supportedToken.decimals;
+        currencyStr = supportedToken.symbol;
       } else {
         currencyStr = "SYS";
       }
@@ -646,22 +644,28 @@ exports.printMissionDetails = async function (args, message, client) {
 
     // set up currency string and get the decimals for converting between
     // wholeUnit and sats later on
-    var token, decimals, currencyStr;
+    let token, decimals, currencyStr;
     if (mission.currencyID !== "SYS") {
-      try {
-        token = await utils.getSPT(mission.currencyID);
-        currencyStr = await utils.getExpLink(mission.currencyID, c.TOKEN);
-      } catch (error) {
-        console.log(`Error finding currency ${mission.currencyID}`);
-        message.channel.send({
-          embed: {
-            color: c.FAIL_COL,
-            description: "Error finding the currency for the mission payout.",
-          },
-        });
-        return;
+      if (mission.nevm) {
+        token = config.nevm.supportedTokens.find(
+          (token) => token.symbol === mission.currencyID
+        );
+        currencyStr = token.symbol;
+      } else {
+        try {
+          token = await utils.getSPT(mission.currencyID);
+          currencyStr = await utils.getExpLink(mission.currencyID, c.TOKEN);
+        } catch (error) {
+          console.log(`Error finding currency ${mission.currencyID}`);
+          message.channel.send({
+            embed: {
+              color: c.FAIL_COL,
+              description: "Error finding the currency for the mission payout.",
+            },
+          });
+          return;
+        }
       }
-
       decimals = token.decimals;
     } else {
       currencyStr = config.ctick;
@@ -1000,25 +1004,20 @@ const sendNotEnoughBalanceMessage = (message, mission) => {
 
 /**
  *
- * @param {string} senderAddress
  * @param {string[]} addressList
  * @param {ethers.ethers.BigNumber} amountPerReceiver
  * @param {ethers.ethers.BigNumber} value To be sent to contract
  * @param {ethers.ethers.providers.JsonRpcProvider} jsonProvider
  */
 const generateDistributeFundsTransaction = async (
-  creatorAddress,
   addressList,
   amountPerReceiver,
   value,
   jsonRpc
 ) => {
-  const nonce = await jsonRpc.getTransactionCount(creatorAddress);
-
   const transactionConfig = {
     type: 2,
     chainId: config.nevm.chainId,
-    nonce,
     value,
     gasLimit:
       config.nevm.distributor.gasLimit +
@@ -1033,8 +1032,8 @@ const generateDistributeFundsTransaction = async (
 
   const distributeTransactionConfig =
     await distributorContract.populateTransaction.distribute(
-      addressList, //addressList.map((address) => `"${address}"`),
       amountPerReceiver,
+      addressList,
       { value }
     );
 
@@ -1045,16 +1044,61 @@ const generateDistributeFundsTransaction = async (
   };
 };
 
-/**
- *
- * @param {string} privateKey
- * @param {ethers.ethers.PopulatedTransaction} transactionConfig
- * @param {ethers.ethers.providers.JsonRpcProvider} jsonRpc
- */
-const sendTransaction = async (privateKey, transactionConfig, jsonRpc) => {
-  const wallet = new ethers.Wallet(privateKey, jsonRpc);
-  const signedTransaction = await wallet.signTransaction(transactionConfig);
-  return jsonRpc.sendTransaction(signedTransaction);
+const generateSetTokenAllownce = async (
+  creatorAddress,
+  tokenAddress,
+  amount,
+  jsonRpc
+) => {
+  const transactionConfig = {
+    type: 2,
+    chainId: config.nevm.chainId,
+    gasLimit: config.nevm.tokenApproveGasLimit,
+    maxFeePerGas: ethers.utils.parseUnits("2.56", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("2.5", "gwei"),
+  };
+  const tokenContract = await getErc20Contract(tokenAddress, jsonRpc);
+  const approveTransactionConfig =
+    await tokenContract.populateTransaction.approve(
+      config.nevm.distributor.address,
+      amount
+    );
+
+  return { ...transactionConfig, ...approveTransactionConfig };
+};
+
+const generateDistributeTokensTransaction = async (
+  creatorAddress,
+  addressList,
+  amountPerReceiver,
+  tokenAddress,
+  jsonRpc
+) => {
+  const transactionConfig = {
+    type: 2,
+    chainId: config.nevm.chainId,
+    gasLimit:
+      config.nevm.distributor.gasLimit +
+      addressList.length * config.nevm.tokenGasLimit,
+    maxFeePerGas: ethers.utils.parseUnits("2.56", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("2.5", "gwei"),
+  };
+  const distributorContract = getDistributorContract(
+    config.nevm.distributor.address,
+    jsonRpc
+  );
+
+  const distributeTransactionConfig =
+    await distributorContract.populateTransaction.distributeTokens(
+      amountPerReceiver,
+      tokenAddress,
+      addressList
+    );
+
+  return {
+    ...transactionConfig,
+    ...distributeTransactionConfig,
+  };
 };
 
 /**
@@ -1095,6 +1139,52 @@ const sendPayoutmessage = (
         (extraMessage ?? ""),
     },
   });
+};
+
+const sendPayoutTransactions = async (
+  symbol,
+  ownerAddress,
+  privateKey,
+  addressList,
+  rewardDividedInWei,
+  rewardInWei,
+  jsonRpc
+) => {
+  const supportedToken = config.nevm.supportedTokens.find(
+    (token) => token.symbol === symbol
+  );
+  if (supportedToken) {
+    const approvalTransaction = await generateSetTokenAllownce(
+      ownerAddress,
+      supportedToken.address,
+      rewardInWei,
+      jsonRpc
+    );
+    const approvalReceipt = await runTransaction(
+      privateKey,
+      approvalTransaction,
+      jsonRpc
+    ).then((resp) => resp.wait(1));
+    console.log({ approvalReceipt });
+
+    const distributTokensTransaction =
+      await generateDistributeTokensTransaction(
+        ownerAddress,
+        addressList,
+        rewardDividedInWei,
+        supportedToken.address,
+        jsonRpc
+      );
+    return runTransaction(privateKey, distributTokensTransaction, jsonRpc);
+  }
+  const distributeTransactionConfig = await generateDistributeFundsTransaction(
+    addressList,
+    rewardDividedInWei,
+    rewardInWei,
+    jsonRpc
+  );
+
+  return runTransaction(privateKey, distributeTransactionConfig, jsonRpc);
 };
 
 /**
@@ -1196,19 +1286,16 @@ exports.payMission = async function (
       rewardDividedInWei,
       rewardInWei,
     });
-    const distributeTransactionConfig =
-      await generateDistributeFundsTransaction(
-        creatorWallet.address,
-        addressList,
-        rewardDividedInWei,
-        rewardInWei,
-        jsonRpc
-      );
-    console.log({ distributeTransactionConfig });
+
     const creatorUser = await client.users.fetch(mission.creator);
-    await sendTransaction(
+
+    await sendPayoutTransactions(
+      mission.currencyID,
+      creatorWallet.address,
       creatorWallet.privateKey,
-      distributeTransactionConfig,
+      addressList,
+      rewardDividedInWei,
+      rewardInWei,
       jsonRpc
     )
       .then((response) => {
