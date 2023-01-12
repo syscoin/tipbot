@@ -4,6 +4,7 @@ const db = require("../db");
 const utils = require("../utils");
 const config = require("../config.json");
 const { getErc20Contract } = require("./utils/contract");
+const { runTransaction } = require("./utils/transaction");
 const prefix = config.prefix;
 
 const sendUsageExample = (message) => {
