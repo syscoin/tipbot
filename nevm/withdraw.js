@@ -50,7 +50,7 @@ const sendInvalidAmount = (message) => {
  * @param {WithdrawTokenProps} params
  * @returns
  */
-const generateWithdrawSignedTransaction = async (params) => {
+const generateWithdrawTransactionConfig = async (params) => {
   const {
     tokenSymbol,
     message,
@@ -103,7 +103,7 @@ const generateWithdrawSignedTransaction = async (params) => {
     ...transferTransactionConfig,
   };
 
-  return wallet.signTransaction(transactionConfig);
+  return transactionConfig;
 };
 
 /**
@@ -173,9 +173,9 @@ async function withdraw(client, message, args, jsonRpc) {
       });
   }
 
-  let signedTransaction = null;
+  let transactionConfig = null;
   if (tokenSymbol && tokenSymbol.toUpperCase() !== "SYS") {
-    signedTransaction = await generateWithdrawSignedTransaction({
+    transactionConfig = await generateWithdrawTransactionConfig({
       tokenSymbol,
       message,
       jsonRpc,
@@ -230,7 +230,7 @@ async function withdraw(client, message, args, jsonRpc) {
         },
       });
     }
-    const transactionConfig = {
+    transactionConfig = {
       type: 2,
       chainId: config.nevm.chainId,
       to: address,
