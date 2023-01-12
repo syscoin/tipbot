@@ -1024,8 +1024,14 @@ const generateDistributeFundsTransaction = async (
     gasLimit:
       config.nevm.distributor.gasLimit +
       addressList.length * config.nevm.distributor.additionalGasPerAddress,
-    maxFeePerGas: ethers.utils.parseUnits("5.06", "gwei"),
-    maxPriorityFeePerGas: ethers.utils.parseUnits("5", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits(
+      config.nevm.distributor.missions.maxFeePerGasInGwei,
+      "gwei"
+    ),
+    maxPriorityFeePerGas: ethers.utils.parseUnits(
+      config.nevm.distributor.missions.maxPriorityFeePerGasInGwei,
+      "gwei"
+    ),
   };
   const distributorContract = getDistributorContract(
     config.nevm.distributor.address,
@@ -1082,8 +1088,14 @@ const generateDistributeTokensTransaction = async (
     gasLimit:
       config.nevm.distributor.gasLimit +
       addressList.length * config.nevm.tokenGasLimit,
-    maxFeePerGas: ethers.utils.parseUnits("3.06", "gwei"),
-    maxPriorityFeePerGas: ethers.utils.parseUnits("3", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits(
+      config.nevm.distributor.missions.maxFeePerGasInGwei,
+      "gwei"
+    ),
+    maxPriorityFeePerGas: ethers.utils.parseUnits(
+      config.nevm.distributor.missions.maxPriorityFeePerGasInGwei,
+      "gwei"
+    ),
   };
   const distributorContract = getDistributorContract(
     config.nevm.distributor.address,
