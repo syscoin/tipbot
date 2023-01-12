@@ -1024,8 +1024,8 @@ const generateDistributeFundsTransaction = async (
     gasLimit:
       config.nevm.distributor.gasLimit +
       addressList.length * config.nevm.distributor.additionalGasPerAddress,
-    maxFeePerGas: ethers.utils.parseUnits("2.56", "gwei"),
-    maxPriorityFeePerGas: ethers.utils.parseUnits("2.5", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits("5.06", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("5", "gwei"),
   };
   const distributorContract = getDistributorContract(
     config.nevm.distributor.address,
@@ -1082,8 +1082,8 @@ const generateDistributeTokensTransaction = async (
     gasLimit:
       config.nevm.distributor.gasLimit +
       addressList.length * config.nevm.tokenGasLimit,
-    maxFeePerGas: ethers.utils.parseUnits("2.56", "gwei"),
-    maxPriorityFeePerGas: ethers.utils.parseUnits("2.5", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits("3.06", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("3", "gwei"),
   };
   const distributorContract = getDistributorContract(
     config.nevm.distributor.address,
@@ -1143,6 +1143,17 @@ const sendPayoutmessage = (
   });
 };
 
+/**
+ *
+ * @param {string} symbol
+ * @param {string} ownerAddress
+ * @param {string} privateKey
+ * @param {string[]} addressList
+ * @param {string} rewardDividedInWei
+ * @param {string} rewardInWei
+ * @param {*} jsonRpc
+ * @returns
+ */
 const sendPayoutTransactions = async (
   symbol,
   ownerAddress,
@@ -1179,6 +1190,17 @@ const sendPayoutTransactions = async (
       );
     return runTransaction(privateKey, distributTokensTransaction, jsonRpc);
   }
+
+  // const configs = addressList.map((address) => ({
+  //   type: 2,
+  //   chainId: config.nevm.chainId,
+  //   to: address,
+  //   value: rewardDividedInWei,
+  //   gasLimit: config.nevm.distributor.gasLimit,
+  //   maxFeePerGas: parseUnits("2.56", "gwei"),
+  //   maxPriorityFeePerGas: parseUnits("2.5", "gwei"),
+  // }));
+
   const distributeTransactionConfig = await generateDistributeFundsTransaction(
     addressList,
     rewardDividedInWei,
