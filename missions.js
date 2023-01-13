@@ -20,6 +20,7 @@ const {
 const { registerWallet } = require("./nevm/register");
 const { runTransaction } = require("./nevm/utils/transaction");
 const Log = require("./log");
+const { generateSendTransactionConfig } = require("./nevm/send");
 
 // split array
 function arraySplit(list, howMany) {
@@ -266,6 +267,24 @@ exports.createOrEditMission = async function (args, message, client, edit) {
         suggesterID,
         suggestValue
       );
+
+      if (suggesterID !== null) {
+        const suggesterNevmWallet = await db.nevm.getNevmWallet(suggesterID);
+        if (!suggesterNevmWallet) {
+          const infoMessage = await message.reply({
+            embed: {
+              description: `It seems @<${suggesterID}> don't have an NEVM wallet for this Mission.`,
+            },
+          });
+          await registerWallet(suggesterID);
+          await infoMessage.reply({
+            embed: {
+              color: c.SUCCESS_COL,
+              description: `Automatically created @<${suggesterID}>'s NEVM Wallet. Please run \`!deposit nevm\` to check your addresss.`,
+            },
+          });
+        }
+      }
     } else {
       const existingMission = await db.getMission(missionName);
       if (!existingMission.nevm) {
@@ -1155,6 +1174,31 @@ const sendPayoutmessage = (
   });
 };
 
+const sendSuggesterPayoutSuccessMessage = async (
+  client,
+  missionId,
+  suggesterId,
+  suggesterAmount,
+  currencyStr,
+  explorerLink
+) => {
+  const payoutChannel = client.channels.cache.get(config.missionPayOutsChannel);
+  payoutChannel.send({
+    embed: {
+      color: c.SUCCESS_COL,
+      description: `Good suggestion! <@${suggesterId}> has been paid ${suggesterAmount} ${currencyStr} for suggesting the mission ${missionId}!\n${explorerLink}`,
+    },
+  });
+
+  const suggesterUser = await client.users.fetch(suggesterId);
+  suggesterUser.send({
+    embed: {
+      color: c.SUCCESS_COL,
+      description: `Suggester Payout for mission: ${missionId} for ${suggesterAmount} ${currencyStr}.\n${explorerLink}`,
+    },
+  });
+};
+
 /**
  *
  * @param {string} symbol
@@ -1202,16 +1246,6 @@ const sendPayoutTransactions = async (
       );
     return runTransaction(privateKey, distributTokensTransaction, jsonRpc);
   }
-
-  // const configs = addressList.map((address) => ({
-  //   type: 2,
-  //   chainId: config.nevm.chainId,
-  //   to: address,
-  //   value: rewardDividedInWei,
-  //   gasLimit: config.nevm.distributor.gasLimit,
-  //   maxFeePerGas: parseUnits("2.56", "gwei"),
-  //   maxPriorityFeePerGas: parseUnits("2.5", "gwei"),
-  // }));
 
   const distributeTransactionConfig = await generateDistributeFundsTransaction(
     addressList,
@@ -1371,6 +1405,61 @@ exports.payMission = async function (
 
         exports.archiveMission(args, message, client, true);
       });
+
+    if (mission.suggesterID) {
+      const suggesterNevmWallet = await db.nevm.getNevmWallet(
+        mission.suggesterID
+      );
+      const sendFundTransactionConfig = await generateSendTransactionConfig(
+        creatorWallet,
+        suggesterNevmWallet,
+        mission.currencyID,
+        mission.suggesterPayout,
+        jsonRpc
+      );
+      runTransaction(
+        creatorWallet.privateKey,
+        sendFundTransactionConfig,
+        jsonRpc
+      )
+        .then((response) => {
+          console.log(
+            `Mission Suggester Payout sent for: ${mission.missionID}!`
+          );
+          const explorerLink = utils.getNevmExplorerLink(
+            response.hash,
+            "transaction",
+            "Click Here to View Transaction"
+          );
+          creatorUser.send({
+            embed: {
+              color: c.SUCCESS_COL,
+              description: `Suggester Payout for mission: ${
+                mission.missionID
+              } for ${ethers.utils.formatEther(mission.suggesterPayout)} ${
+                mission.currencyID
+              }. Please wait for it to be mined.\n${explorerLink}`,
+            },
+          });
+          return response.wait(1);
+        })
+        .then((receipt) => {
+          const amountInEth = ethers.utils.formatEther(mission.suggesterPayout);
+          const explorerLink = utils.getNevmExplorerLink(
+            receipt.transactionHash,
+            "transaction",
+            "Click Here to View Transaction"
+          );
+          sendSuggesterPayoutSuccessMessage(
+            client,
+            mission.missionID,
+            mission.suggesterID,
+            amountInEth,
+            mission.currencyID,
+            explorerLink
+          );
+        });
+    }
   } catch (error) {
     console.log(error);
     message.channel.send({
