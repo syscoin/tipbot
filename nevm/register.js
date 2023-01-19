@@ -8,6 +8,17 @@ const tipbotWallet = HDWallet.fromMnemonic(config.nevm.mnemonic).derive(
   HDWallet.DefaultHDPath
 );
 
+const registerWallet = async (userId) => {
+  const count = await db.nevm.getNevmWalletCount();
+  const newWallet = tipbotWallet.derive(count);
+
+  return db.nevm.createNevmWallet(
+    userId,
+    `0x${newWallet.getAddress().toString("hex")}`,
+    `0x${newWallet.getPrivateKey().toString("hex")}`
+  );
+};
+
 /**
  *
  * @param {Discord.Client} client
@@ -33,14 +44,8 @@ async function registerNevm(client, message, args) {
       });
     return;
   }
-  const count = await db.nevm.getNevmWalletCount();
-  const newWallet = tipbotWallet.derive(count);
 
-  nevmWallet = await db.nevm.createNevmWallet(
-    message.author.id,
-    `0x${newWallet.getAddress().toString("hex")}`,
-    `0x${newWallet.getPrivateKey().toString("hex")}`
-  );
+  nevmWallet = registerWallet(message.author.id);
 
   if (!nevmWallet) {
     console.error("registerNevm", "Wallet creation failed");
@@ -56,4 +61,7 @@ async function registerNevm(client, message, args) {
   });
 }
 
-module.exports = registerNevm;
+module.exports = {
+  registerNevm,
+  registerWallet,
+};

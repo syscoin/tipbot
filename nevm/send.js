@@ -8,8 +8,12 @@ const config = require("../config.json");
 const prefix = config.prefix;
 const utils = require("../utils");
 const { getErc20Contract } = require("./utils/contract");
+const { runTransaction } = require("./utils/transaction");
 
 const SYS_EMOJI = ":boom:";
+
+const ERROR_TOKEN_NOT_SUPPORTED = "token_not_supported";
+const ERROR_INSUFFICIENT_BALANCE = "insufficient_balance";
 
 const sendUsageExample = (message) => {
   message.channel.send({
@@ -18,6 +22,59 @@ const sendUsageExample = (message) => {
       description: `Usage: ${prefix}tip [user] [amount] nevm`,
     },
   });
+};
+
+const generateSendTransactionConfig = async (
+  wallet,
+  receiverWallet,
+  symbol,
+  value,
+  jsonRpc
+) => {
+  let transactionConfig = {
+    type: 2,
+    chainId: config.nevm.chainId,
+    to: receiverWallet.address,
+    value,
+    gasLimit: config.nevm.gasLimit,
+    maxFeePerGas: parseUnits("10", "gwei"),
+    maxPriorityFeePerGas: parseUnits("2", "gwei"),
+  };
+
+  if (symbol && symbol.toUpperCase() !== "SYS") {
+    const tokenSymbol = symbol;
+    const token = config.nevm.supportedTokens.find(
+      (token) => token.symbol === tokenSymbol.toUpperCase()
+    );
+    if (!token) {
+      throw new Error(ERROR_TOKEN_NOT_SUPPORTED);
+    }
+
+    const tokenContract = getErc20Contract(token.address, jsonRpc);
+
+    const balance = await tokenContract.balanceOf(wallet.address);
+
+    if (balance.lt(value)) {
+      throw new Error(ERROR_INSUFFICIENT_BALANCE);
+    }
+
+    console.log({ value: value.toString() });
+
+    const transferTransactionConfig =
+      await tokenContract.populateTransaction.transfer(
+        receiverWallet.address,
+        value
+      );
+
+    transactionConfig = {
+      ...transactionConfig,
+      value: 0,
+      gasLimit: config.nevm.tokenGasLimit,
+      ...transferTransactionConfig,
+    };
+  }
+
+  return transactionConfig;
 };
 
 /**
@@ -91,7 +148,6 @@ async function send(
   }
 
   const wallet = new ethers.Wallet(senderWallet.privateKey);
-  const nonce = await jsonRpc.getTransactionCount(wallet.address);
   const minTip = parseUnits(`${config.tipMin}`, "ether");
   const minimumAmount = minTip.add(maxGasFee);
 
@@ -105,75 +161,33 @@ async function send(
       },
     });
   }
-
-  let transactionConfig = {
-    type: 2,
-    chainId: config.nevm.chainId,
-    to: receiverWallet.address,
-    value,
-    gasLimit,
-    nonce,
-    maxFeePerGas,
-    maxPriorityFeePerGas: parseUnits("2", "gwei"),
-  };
-
-  if (argSymbol && argSymbol.toUpperCase() !== "SYS") {
-    const tokenSymbol = argSymbol;
-    const token = config.nevm.supportedTokens.find(
-      (token) => token.symbol === tokenSymbol.toUpperCase()
-    );
-    if (!token) {
-      return message.channel.send({
-        embed: {
-          color: constants.FAIL_COL,
-          description: `Hi, **<@${
-            senderProfile.userID
-          }>** \n*${tokenSymbol.toUpperCase()}* is not supported.`,
-        },
-      });
-    }
-
-    const tokenContract = getErc20Contract(token.address, jsonRpc);
-
-    const balance = await tokenContract.balanceOf(wallet.address);
-
-    if (balance.lt(value)) {
-      return message.channel.send({
-        embed: {
-          color: constants.FAIL_COL,
-          description: `Hi, **<@${
-            senderProfile.userID
-          }>** \n You don't have enough balance (*${tokenSymbol.toUpperCase()}*) to execute this transaction.`,
-        },
-      });
-    }
-
-    console.log({ value: value.toString() });
-
-    const transferTransactionConfig =
-      await tokenContract.populateTransaction.transfer(
-        receiverWallet.address,
-        value
-      );
-
-    transactionConfig = {
-      ...transactionConfig,
-      value: 0,
-      gasLimit: config.nevm.tokenGasLimit,
-      ...transferTransactionConfig,
-    };
-  }
-
-  const signedTransaction = await wallet.signTransaction(transactionConfig);
-
-  console.log("Sending Transaction...", { transactionConfig });
   const valueInEther = formatEther(value);
 
   const sendUser = await client.users.fetch(senderProfile.userID);
   const receiveUser = await client.users.fetch(receiverProfile.userID);
+  let transactionConfig;
 
-  jsonRpc
-    .sendTransaction(signedTransaction)
+  try {
+    transactionConfig = await generateSendTransactionConfig(
+      wallet,
+      receiverWallet,
+      argSymbol,
+      value,
+      jsonRpc
+    );
+  } catch (e) {
+    message.channel.send({
+      embed: {
+        color: constants.FAIL_COL,
+        description: e.message,
+      },
+    });
+    return;
+  }
+
+  console.log("Sending Transaction...", { transactionConfig });
+  
+  runTransaction(wallet.privateKey, transactionConfig, jsonRpc)
     .then((response) => {
       console.log("Transaction Sent!");
       const explorerLink = utils.getNevmExplorerLink(
@@ -258,4 +272,4 @@ async function send(
     });
 }
 
-module.exports = send;
+module.exports = { send, generateSendTransactionConfig };

@@ -21,5 +21,8 @@
     "sharp": "^0.28.1",
     "syscoinjs-lib": "^1.0.141",
     "utf8": "^3.0.0"
+  },
+  "scripts": {
+    "dev": "NODE_ENV=development node server.js"
   }
 }

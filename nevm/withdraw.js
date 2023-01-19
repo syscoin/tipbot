@@ -4,6 +4,7 @@ const db = require("../db");
 const utils = require("../utils");
 const config = require("../config.json");
 const { getErc20Contract } = require("./utils/contract");
+const { runTransaction } = require("./utils/transaction");
 const prefix = config.prefix;
 
 const sendUsageExample = (message) => {
@@ -49,7 +50,7 @@ const sendInvalidAmount = (message) => {
  * @param {WithdrawTokenProps} params
  * @returns
  */
-const generateWithdrawSignedTransaction = async (params) => {
+const generateWithdrawTransactionConfig = async (params) => {
   const {
     tokenSymbol,
     message,
@@ -102,7 +103,7 @@ const generateWithdrawSignedTransaction = async (params) => {
     ...transferTransactionConfig,
   };
 
-  return wallet.signTransaction(transactionConfig);
+  return transactionConfig;
 };
 
 /**
@@ -172,9 +173,9 @@ async function withdraw(client, message, args, jsonRpc) {
       });
   }
 
-  let signedTransaction = null;
-  if (tokenSymbol && tokenSymbol.toUpperCase() !== 'SYS') {
-    signedTransaction = await generateWithdrawSignedTransaction({
+  let transactionConfig = null;
+  if (tokenSymbol && tokenSymbol.toUpperCase() !== "SYS") {
+    transactionConfig = await generateWithdrawTransactionConfig({
       tokenSymbol,
       message,
       jsonRpc,
@@ -229,8 +230,7 @@ async function withdraw(client, message, args, jsonRpc) {
         },
       });
     }
-
-    signedTransaction = await wallet.signTransaction({
+    transactionConfig = {
       type: 2,
       chainId: config.nevm.chainId,
       to: address,
@@ -239,12 +239,11 @@ async function withdraw(client, message, args, jsonRpc) {
       nonce,
       maxFeePerGas,
       maxPriorityFeePerGas: etherUtils.parseUnits("2", "gwei"),
-    });
+    };
   }
 
   console.log("Sending Transaction...", wallet.address);
-  jsonRpc
-    .sendTransaction(signedTransaction)
+  runTransaction(wallet.privateKey, transactionConfig, jsonRpc)
     .then((response) => {
       console.log("Transaction Sent!");
       const explorerLink = utils.getNevmExplorerLink(

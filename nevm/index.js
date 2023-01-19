@@ -1,10 +1,10 @@
-const register = require("./register");
+const { registerNevm } = require("./register");
 const deposit = require("./deposit");
 const balance = require("./balance");
 const withdraw = require("./withdraw");
-const send = require("./send");
+const { send } = require("./send");
 module.exports = {
-  register,
+  register: registerNevm,
   deposit,
   balance,
   withdraw,

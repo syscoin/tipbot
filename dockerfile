@@ -10,6 +10,8 @@ RUN apt-get -y install nodejs
 
 WORKDIR /app
 
+RUN wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+
 COPY ./package.json ./
 
 RUN npm install
