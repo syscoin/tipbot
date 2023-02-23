@@ -478,7 +478,7 @@ exports.removeFromMission = async function (args, message, client) {
       return;
     }
 
-    var userID = user.replace(/<@!|>/gi, "");
+    var userID = user.replace(/<@|!|>/gi, "");
     var profileInMission = await db.checkProfileInMission(userID, missionName);
     if (!profileInMission) {
       message.channel.send({
@@ -579,7 +579,7 @@ exports.addToMission = async function (args, message, client) {
       });
       return;
     }
-    var userID = user.replace(/<@!|>/gi, "");
+    var userID = user.replace(/<@|!|>/gi, "");
     var profileInMission = await db.checkProfileInMission(userID, missionName);
     if (profileInMission) {
       message.channel.send({
