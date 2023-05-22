@@ -56,6 +56,20 @@ exports.checkAdminRole = function(message) {
   }
 }
 
+exports.checkMissionRunnerRole = function(message) {
+  try {
+    if (!message.member.roles.cache.has(config.MissionRunnerRoleId)) {
+      return false
+    } else {
+      return true
+    }
+  } catch (error) {
+    console.log(error)
+    message.channel.send({embed: { color: c.FAIL_COL, description: "Error checking MissionRunner role."}});
+    return false
+  }
+}
+
 // checks if the writer of the message has the Mission role
 exports.checkMissionRole = function(message) {
   try {
