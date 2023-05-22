@@ -1412,7 +1412,7 @@ client.on("message", async (message) => {
           return;
         }
 
-        if ([config.giveawayChannel, config.rollCollChannel].includes(message.channel.id)) {
+        if ([config.giveawayChannel, config.rollCallChannel].includes(message.channel.id)) {
           giveaways.createGiveaway(message, args, client);
         }
         break;
