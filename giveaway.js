@@ -16,7 +16,7 @@ BigNumber.config({ EXPONENTIAL_AT: 1e+9 })
 const Discord = require('discord.js')
 
 const EMOJI = '⚡'
-const REACT_EMOJI = 'Sys_wh'
+const REACT_EMOJI = ':Sys_wh:'
 
 var LocalStorage = require('node-localstorage').LocalStorage
 localStorage = new LocalStorage('./ls')
@@ -36,9 +36,7 @@ function formatWinners(winners) {
 }
 
 //Creates a message description to send.
-async function createDescription(message, time, winners, amount, symbol, giveawayID) {
-  const reactionEmoji = message.guild.emojis.cache.find(emoji => emoji.name === REACT_EMOJI);
-	
+async function createDescription(time, winners, amount, symbol, giveawayID) {
     return `
 ${EMOJI} **${symbol} GIVEAWAY!** ${EMOJI}
 
@@ -46,7 +44,7 @@ ${EMOJI} **${symbol} GIVEAWAY!** ${EMOJI}
 ${(await formatTime(giveawayID))}
 ${formatWinners(winners)}
 **${amount.toString()}** ${symbol} each.
-\r\n\r\nReact with ${reactionEmoji} to enter!`;
+\r\n\r\nReact with ${REACT_EMOJI} to enter!`;
 }
 
 //Updates a message.
@@ -56,7 +54,7 @@ async function updateMessage(message, time, winners, amount, symbol, link, givea
       await message.edit("", {
           embed: {
               description:
-                await createDescription(message, time, winners, amount, symbol, giveawayID),
+                await createDescription(time, winners, amount, symbol, giveawayID),
               image: { url: link },
               color: c.SUCCESS_COL
           }
@@ -295,11 +293,9 @@ exports.createGiveaway = async function(msg, args, discordClient) {
       return reaction.emoji.name === REACT_EMOJI && !user.bot;
     }
 
-    const reactionEmoji = giveaway.guild.emojis.cache.find(emoji => emoji.name === REACT_EMOJI);
-	
     var collector = new ReactionCollector(giveaway, filter, {time: time * 1000});
 
-    giveaway.react(reactionEmoji);
+    giveaway.react(REACT_EMOJI);
 
     //Function to update the time.
     async function updateTime() {
