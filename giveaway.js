@@ -16,7 +16,7 @@ BigNumber.config({ EXPONENTIAL_AT: 1e+9 })
 const Discord = require('discord.js')
 
 const EMOJI = '⚡'
-const REACT_EMOJI = ':Sys_wh:'
+const REACT_EMOJI = '🤘'
 
 var LocalStorage = require('node-localstorage').LocalStorage
 localStorage = new LocalStorage('./ls')
