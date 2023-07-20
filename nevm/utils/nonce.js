@@ -26,7 +26,10 @@ const getLatestNonce = async (address, jsonRpc) => {
   Log.debug({ savedNonce: nonce, pendingNonce });
   if (!nonce || nonce < pendingNonce) {
     nonce = pendingNonce;
+  } else if (nonce - pendingNonce > 1) {
+    nonce = pendingNonce;
   }
+  Log.debug({finalNonce: nonce});
   set(address, nonce + 1);
   return nonce;
 };

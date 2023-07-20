@@ -1397,8 +1397,8 @@ client.on("message", async (message) => {
       case "giveaway":
         // creates a giveaway that will randomly select a given number of users who react to the message
         // within a given time and will give the specified amount of SYS or SPTs to the selected winners
-
-        if (!utils.checkAdminRole(message)) {
+        const canGiveAway = utils.checkAdminRole(message) || utils.checkMissionRunnerRole(message);
+        if (!canGiveAway) {
           message.channel
             .send({
               embed: {
@@ -1412,7 +1412,7 @@ client.on("message", async (message) => {
           return;
         }
 
-        if (message.channel.id == config.giveawayChannel) {
+        if ([config.giveawayChannel, config.rollCallChannel].includes(message.channel.id)) {
           giveaways.createGiveaway(message, args, client);
         }
         break;

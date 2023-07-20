@@ -478,7 +478,7 @@ exports.removeFromMission = async function (args, message, client) {
       return;
     }
 
-    var userID = user.replace(/<@!|>/gi, "");
+    var userID = user.replace(/<@|!|>/gi, "");
     var profileInMission = await db.checkProfileInMission(userID, missionName);
     if (!profileInMission) {
       message.channel.send({
@@ -579,7 +579,7 @@ exports.addToMission = async function (args, message, client) {
       });
       return;
     }
-    var userID = user.replace(/<@!|>/gi, "");
+    var userID = user.replace(/<@|!|>/gi, "");
     var profileInMission = await db.checkProfileInMission(userID, missionName);
     if (profileInMission) {
       message.channel.send({
@@ -749,7 +749,7 @@ exports.printMissionDetails = async function (args, message, client) {
   }
 };
 
-const utxoPaymission = async (mission, message, client) => {
+const utxoPaymission = async (args, missionName, mission, message, client) => {
   var myProfile = await db.getProfile(mission.creator);
   var myBalance = await db.getBalance(mission.creator, mission.currencyID);
   var missionTotalReward = new BigNumber(mission.reward);
@@ -1314,7 +1314,7 @@ exports.payMission = async function (
     }
 
     if (!mission.nevm) {
-      return utxoPaymission(mission, message, client);
+      return utxoPaymission(args, missionName, mission, message, client);
     }
 
     const creatorWallet = await db.nevm.getNevmWallet(mission.creator);
