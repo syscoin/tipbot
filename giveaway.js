@@ -254,14 +254,8 @@ exports.createGiveaway = async function(msg, args, discordClient) {
       return;
     }
 
-    var giveawayIndex = ls.get("giveawayIndex")
-    if (!giveawayIndex) {
-      ls.set("giveawayIndex", 0)
-      giveawayIndex = 0
-    } else {
-      giveawayIndex = Number(giveawayIndex) + 1
-      ls.set("giveawayIndex", giveawayIndex)
-    }
+    var giveawayIndex =  await db.getGiveawayCount();
+    
     console.log("Giveaway index: " + ls.get("giveawayIndex"))
 
     var now = Date.now()

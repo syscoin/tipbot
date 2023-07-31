@@ -1,6 +1,6 @@
-var exports = module.exports = {};
-var mongoose = require('mongoose');
-var ObjectId = mongoose.Types.ObjectId;
+const exports = module.exports = {};
+const mongoose = require('mongoose');
+const ObjectId = mongoose.Types.ObjectId;
 const sjs = require('syscoinjs-lib')
 const BigNumber = require('bignumber.js')
 BigNumber.config({ DECIMAL_PLACES: 8 })
@@ -9,15 +9,15 @@ BigNumber.config({ EXPONENTIAL_AT: 1e+9 })
 const config = require('./config.json')
 
 // import mongoose models
-var Auction = require('./models/auction.js')
-var Bid = require('./models/bid.js')
-var Balance = require('./models/balance.js');
-var Giveaway = require('./models/giveaway.js');
-var Log = require('./models/log.js');
-var Mission = require('./models/mission.js');
-var Profile = require('./models/profile.js');
-var SPT = require('./models/spt.js')
-var Trade = require('./models/trade.js');
+const Auction = require('./models/auction.js')
+const Bid = require('./models/bid.js')
+const Balance = require('./models/balance.js');
+const Giveaway = require('./models/giveaway.js');
+const Log = require('./models/log.js');
+const Mission = require('./models/mission.js');
+const Profile = require('./models/profile.js');
+const SPT = require('./models/spt.js')
+const Trade = require('./models/trade.js');
 const NevmWallet = require('./models/nevm-wallet');
 
 const mongodbhost = process.env.MONGODB_HOST ?? 'mongodb://localhost';
@@ -443,6 +443,16 @@ exports.endGiveaway = function(id) {
     return Giveaway.findOneAndUpdate({ giveawayID: id },
             { active: false },
             { new: true});
+  } catch (error) {
+    console.log(error)
+    return null
+  }
+}
+
+// get count of giveaways
+exports.getGiveawayCount = function() {
+  try {
+    return Giveaway.countDocuments();
   } catch (error) {
     console.log(error)
     return null
