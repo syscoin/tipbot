@@ -1,4 +1,4 @@
-const exports = module.exports = {};
+var exports = module.exports = {};
 const mongoose = require('mongoose');
 const ObjectId = mongoose.Types.ObjectId;
 const sjs = require('syscoinjs-lib')
