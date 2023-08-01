@@ -689,7 +689,10 @@ exports.endingSoon = async function(message, client) {
     }
   } catch (error) {
     console.log(error)
-    message.channel.send({embed: { color: c.FAIL_COL, description: `Error finding auctions.`}})
+    if(message) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `Error finding auctions.`}})
+    }
+    
   }
 }
 
