@@ -38,7 +38,7 @@ exports.connect = function() {
         }).catch(err => {
 
           console.error('Connection Error:', err)
-          console.log('Exiting');
+          console.log('Exiting: Could not connect to MongoDB');
           process.exit(1);
         });
   } catch (error) {
