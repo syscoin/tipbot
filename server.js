@@ -1412,6 +1412,10 @@ client.on("message", async (message) => {
           return;
         }
 
+        if(args.slice(-1)[0].toUpperCase() === 'NEVM') {
+          return await nevm.createGiveAway(message, args, client, provider);
+        }
+
         if ([config.giveawayChannel, config.rollCallChannel].includes(message.channel.id)) {
           giveaways.createGiveaway(message, args, client);
         }
