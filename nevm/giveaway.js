@@ -184,8 +184,64 @@ const createEndMessage = async (giveawayMessage, winnerIds, linkMessage) => {
   }
 };
 
+let timer = null;
+let giveawayList = [];
+
+const startGiveawayTimer = () => {
+  if (timer) {
+    clearInterval(timer);
+  }
+  console.log("Starting giveaway timer");
+  timer = setInterval(() => {
+    if (giveawayList.length === 0) {
+      return;
+    }
+    const doneGiveaways = [];
+    giveawayList.forEach((giveaway) => {
+      const {
+        giveawayID,
+        endTime,
+        reactionCollector,
+        giveawayMessage,
+        expectedWinnersCount,
+        reward,
+      } = giveaway;
+
+      if (new Date(endTime) < new Date()) {
+        console.log(`Giveaway ${giveawayID} has ended!`);
+        doneGiveaways.push(giveawayID);
+        reactionCollector.stop();
+        return;
+      }
+      giveawayMessage.edit({
+        embed: {
+          color: constants.SUCCESS_COL,
+          description: createSuccessMessage(
+            expectedWinnersCount,
+            reward,
+            "SYS",
+            endTime
+          ),
+        },
+      });
+    });
+    giveawayList = giveawayList.filter(
+      (giveaway) => !doneGiveaways.includes(giveaway.giveawayID)
+    );
+  }, 5000);
+};
+
+/**
+ *
+ * @param {*} authorId
+ * @param {Discord.Message} giveawayMessage
+ * @param {*} giveawayID
+ * @param {*} collectorDurationInMs
+ * @param {*} expectedWinnersCount
+ * @param {*} jsonProvider
+ */
 const postCreation = async (
-  creationMessage,
+  authorId,
   giveawayMessage,
   giveawayID,
   collectorDurationInMs,
@@ -218,17 +274,23 @@ const postCreation = async (
     }
   };
 
-  const onEnd = async (collected) => {
-    const hasReactions = collected.array().length > 0;
+  const onEnd = async () => {
+    const updatedGiveawayMessage = await giveawayMessage.fetch(true);
+    const reaction = updatedGiveawayMessage.reactions.cache.get(REACT_EMOJI);
 
-    if (!hasReactions) {
+    if (!reaction) {
+      console.log("No reaction found for giveaway: " + giveawayID);
+      await db.endGiveaway(giveawayID, []);
       createEndMessage(giveawayMessage, []);
       return;
     }
 
-    const users = collected.array()[0].users.cache.array();
+    const userCollection = await reaction.users.fetch();
+    const users = userCollection.array();
 
     if (users.length <= 1) {
+      console.log("No users found for giveaway: " + giveawayID);
+      await db.endGiveaway(giveawayID, []);
       createEndMessage(giveawayMessage, []);
       return;
     }
@@ -266,6 +328,7 @@ const postCreation = async (
     }
 
     if (finalWinners.length === 0) {
+      await db.endGiveaway(giveawayID, []);
       createEndMessage(giveawayMessage, []);
     }
 
@@ -284,10 +347,8 @@ const postCreation = async (
       jsonProvider
     );
 
-    const creatorWallet = await db.nevm.getNevmWallet(
-      creationMessage.author.id
-    );
-
+    const creatorWallet = await db.nevm.getNevmWallet(authorId);
+    await db.endGiveaway(giveawayID, finalWinners);
     runTransaction(creatorWallet.privateKey, transactionConfig, jsonProvider)
       .then((response) => {
         console.log(`Giveaway Payout sent for: ${giveawayID}!`);
@@ -314,28 +375,18 @@ const postCreation = async (
     onReactCollect(...params);
   });
 
-  reactionCollector.on("end", (...params) => {
-    onEnd(...params);
+  reactionCollector.on("end", () => {
+    onEnd();
   });
 
-  const interval = setInterval(() => {
-    if (new Date(endTime) < new Date()) {
-      clearInterval(interval);
-      reactionCollector.stop();
-      return;
-    }
-    giveawayMessage.edit({
-      embed: {
-        color: constants.SUCCESS_COL,
-        description: createSuccessMessage(
-          expectedWinnersCount,
-          reward,
-          "SYS",
-          endTime
-        ),
-      },
-    });
-  }, 1000);
+  giveawayList.push({
+    giveawayID,
+    endTime,
+    reactionCollector,
+    giveawayMessage,
+    expectedWinnersCount,
+    reward,
+  });
 
   giveawayMessage.react(REACT_EMOJI);
 };
@@ -348,6 +399,7 @@ const postCreation = async (
  * @param {ethers.providers.JsonRpcProvider} jsonProvider
  */
 async function createGiveAway(message, args, client, jsonProvider) {
+  message.channel.messages;
   if (
     !checkRole(message) ||
     !checkChannel(message) ||
@@ -373,7 +425,6 @@ async function createGiveAway(message, args, client, jsonProvider) {
     .convertToMillisecs(new BigNumber(parseInt(time)), timeUnit)
     .toNumber();
 
-  console.log({ time, timeUnit, timeInMs });
   const timeExpire = new Date(Date.now() + timeInMs);
 
   const winnerCount = parseInt(winners);
@@ -404,7 +455,9 @@ async function createGiveAway(message, args, client, jsonProvider) {
     giveawayId,
     amountInWei,
     "SYS",
-    timeExpire
+    timeExpire,
+    message.author.id,
+    winnerCount
   );
 
   // create message for giveaway
@@ -422,8 +475,10 @@ async function createGiveAway(message, args, client, jsonProvider) {
     },
   });
 
+  await db.recordGiveawayMessage(giveaway.giveawayID, giveawayMessage.id);
+
   postCreation(
-    message,
+    message.author.id,
     giveawayMessage,
     giveaway.giveawayID,
     timeInMs,
@@ -431,7 +486,54 @@ async function createGiveAway(message, args, client, jsonProvider) {
     jsonProvider
   );
 }
+/**
+ * Run giveaway thread for a giveaway
+ * @param {*} giveaway
+ * @param {Discord.TextChannel} giveawayChannel
+ * @param {ethers.providers.JsonRpcProvider} jsonProvider
+ */
+const runGiveaway = async (giveaway, giveawayChannel, jsonProvider) => {
+  const {
+    giveawayID,
+    messageId,
+    expectedWinnerCount: winnerCount,
+    endTime,
+    authorId,
+  } = giveaway;
+  const giveawayMessage = await giveawayChannel.messages.fetch(messageId);
+  const timeDuration = new Date(endTime).getTime() - Date.now();
+
+  console.log(`Resuming giveaway: ${giveawayID}, messageId: ${messageId}`);
+
+  postCreation(
+    authorId,
+    giveawayMessage,
+    giveaway.giveawayID,
+    timeDuration,
+    winnerCount,
+    jsonProvider
+  );
+};
+
+/**
+ *
+ * @param {Discord.Client} client
+ * @param {ethers.providers.JsonRpcProvider} jsonProvider
+ */
+async function resumeActiveGiveaways(client, jsonProvider) {
+  const channel = await client.channels.fetch(config.giveawayChannel);
+  if (channel.isText()) {
+    const activeGiveaways = await db.getActiveGiveaways();
+    await Promise.all(
+      activeGiveaways.map((giveaway) =>
+        runGiveaway(giveaway, channel, jsonProvider)
+      )
+    );
+  }
+}
 
 module.exports = {
   createGiveAway,
+  startGiveawayTimer,
+  resumeActiveGiveaways,
 };
