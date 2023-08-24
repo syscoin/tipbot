@@ -10,6 +10,7 @@ var GiveawaySchema = new mongoose.Schema({
   endTime: { type: Date },
   active: { type: Boolean },
   messageId: { type: String },
+  channelId: { type: String },
   authorId: { type: String },
   expectedWinnerCount: { type: Number },
 });

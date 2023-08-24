@@ -475,7 +475,11 @@ async function createGiveAway(message, args, client, jsonProvider) {
     },
   });
 
-  await db.recordGiveawayMessage(giveaway.giveawayID, giveawayMessage.id);
+  await db.recordGiveawayMessage(
+    giveaway.giveawayID,
+    giveawayMessage.id,
+    message.channel.id
+  );
 
   postCreation(
     message.author.id,
@@ -489,17 +493,22 @@ async function createGiveAway(message, args, client, jsonProvider) {
 /**
  * Run giveaway thread for a giveaway
  * @param {*} giveaway
- * @param {Discord.TextChannel} giveawayChannel
+ * @param {Discord.Client} client
  * @param {ethers.providers.JsonRpcProvider} jsonProvider
  */
-const runGiveaway = async (giveaway, giveawayChannel, jsonProvider) => {
+const runGiveaway = async (giveaway, client, jsonProvider) => {
   const {
     giveawayID,
     messageId,
+    channelId,
     expectedWinnerCount: winnerCount,
     endTime,
     authorId,
   } = giveaway;
+  const giveawayChannel = await client.channels.fetch(channelId, true, false);
+  if (!giveawayChannel.isText()) {
+    return;
+  }
   const giveawayMessage = await giveawayChannel.messages.fetch(messageId);
   const timeDuration = new Date(endTime).getTime() - Date.now();
 
@@ -521,15 +530,12 @@ const runGiveaway = async (giveaway, giveawayChannel, jsonProvider) => {
  * @param {ethers.providers.JsonRpcProvider} jsonProvider
  */
 async function resumeActiveGiveaways(client, jsonProvider) {
-  const channel = await client.channels.fetch(config.giveawayChannel);
-  if (channel.isText()) {
-    const activeGiveaways = await db.getActiveGiveaways();
-    await Promise.all(
-      activeGiveaways.map((giveaway) =>
-        runGiveaway(giveaway, channel, jsonProvider)
-      )
-    );
-  }
+  const activeGiveaways = await db.getActiveGiveaways();
+  await Promise.all(
+    activeGiveaways.map(async (giveaway) =>
+      runGiveaway(giveaway, client, jsonProvider)
+    )
+  );
 }
 
 module.exports = {

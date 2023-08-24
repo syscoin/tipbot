@@ -488,12 +488,13 @@ exports.createGiveaway = function (
   }
 };
 
-exports.recordGiveawayMessage = function (id, messageId) {
+exports.recordGiveawayMessage = function (id, messageId, channelId) {
   try {
     return Giveaway.findOneAndUpdate(
       { giveawayID: id },
       {
         messageId: messageId,
+        channelId: channelId,
       }
     );
   } catch (error) {
@@ -541,6 +542,7 @@ exports.getActiveGiveaways = function () {
     return Giveaway.find({
       active: true,
       messageId: { $exists: true },
+      channelId: { $exists: true },
       authorId: { $exists: true },
     });
   } catch (error) {
