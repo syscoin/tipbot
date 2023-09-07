@@ -417,6 +417,20 @@ exports.archiveMission = function (id) {
   }
 };
 
+/**
+ * Set txHash for mission
+ * @param {string} missionId
+ * @param {string} txHash
+ */
+exports.setMissionTxHash = function (missionId, txHash) {
+  try {
+    return Mission.findOneAndUpdate({ missionID: missionId }, { txHash });
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+};
+
 // adds a new "verified" SPT to the db, this links to the guid
 // for using with the fetchBackednAsset function
 exports.createSPT = function (symbol, guid, link) {
