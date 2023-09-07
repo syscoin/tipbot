@@ -1060,7 +1060,10 @@ const generateDistributeFundsTransaction = async (
     gasLimit,
     gasPrice,
     maxFeePerGas: gasPrice,
-    maxPriorityFeePerGas: gasPrice,
+    maxPriorityFeePerGas: ethers.utils.parseUnits(
+      config.nevm.distributor.missions.maxPriorityFeePerGasInGwei,
+      "gwei"
+    ),
   };
 
   const distributeTransactionConfig =
