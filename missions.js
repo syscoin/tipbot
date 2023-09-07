@@ -1028,7 +1028,7 @@ const sendNotEnoughBalanceMessage = (message, mission) => {
  * @param {string[]} addressList
  * @param {ethers.ethers.BigNumber} amountPerReceiver
  * @param {ethers.ethers.BigNumber} value To be sent to contract
- * @param {ethers.ethers.providers.JsonRpcProvider} jsonProvider
+ * @param {ethers.providers.JsonRpcProvider} jsonRpc
  */
 const generateDistributeFundsTransaction = async (
   addressList,
@@ -1036,13 +1036,29 @@ const generateDistributeFundsTransaction = async (
   value,
   jsonRpc
 ) => {
+  const distributorContract = getDistributorContract(
+    config.nevm.distributor.address,
+    jsonRpc
+  );
+
+  const gasLimit = await distributorContract.estimateGas
+    .distribute(amountPerReceiver, addressList, { value })
+    .catch(() =>
+      Promise.resolve(
+        config.nevm.distributor.gasLimit +
+          addressList.length * config.nevm.distributor.additionalGasPerAddress
+      )
+    );
+
+  const gasPrice = await jsonRpc.getGasPrice();
+
+  // ethers.UnsignedTransaction
   const transactionConfig = {
     type: 2,
     chainId: config.nevm.chainId,
     value,
-    gasLimit:
-      config.nevm.distributor.gasLimit +
-      addressList.length * config.nevm.distributor.additionalGasPerAddress,
+    gasLimit,
+    gasPrice,
     maxFeePerGas: ethers.utils.parseUnits(
       config.nevm.distributor.missions.maxFeePerGasInGwei,
       "gwei"
@@ -1052,10 +1068,6 @@ const generateDistributeFundsTransaction = async (
       "gwei"
     ),
   };
-  const distributorContract = getDistributorContract(
-    config.nevm.distributor.address,
-    jsonRpc
-  );
 
   const distributeTransactionConfig =
     await distributorContract.populateTransaction.distribute(
