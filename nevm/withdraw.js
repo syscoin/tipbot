@@ -92,14 +92,17 @@ const generateWithdrawTransactionConfig = async (params) => {
   const transferTransactionConfig =
     await tokenContract.populateTransaction.transfer(recepientAddress, value);
 
+  const { maxPriorityFeePerGas, maxFeePerGas } = await jsonRpc.getFeeData();
+
   const transactionConfig = {
     type: 2,
     chainId: config.nevm.chainId,
     value: 0,
     gasLimit: config.nevm.tokenGasLimit,
     nonce,
-    maxFeePerGas: etherUtils.parseUnits("10", "gwei"),
-    maxPriorityFeePerGas: etherUtils.parseUnits("2", "gwei"),
+    maxFeePerGas: maxFeePerGas ?? etherUtils.parseUnits("40", "gwei"),
+    maxPriorityFeePerGas:
+      maxPriorityFeePerGas ?? etherUtils.parseUnits("3", "gwei"),
     ...transferTransactionConfig,
   };
 
@@ -199,8 +202,9 @@ async function withdraw(client, message, args, jsonRpc) {
     }
 
     const gasLimit = config.nevm.gasLimit;
-    const maxFeePerGas = etherUtils.parseUnits("10", "gwei");
-    const maxGasFee = maxFeePerGas.mul(gasLimit);
+    const { maxFeePerGas } = await jsonRpc.getFeeData();
+    const defaultMaxFeePerGas = etherUtils.parseUnits("10", "gwei");
+    const maxGasFee = (maxFeePerGas ?? defaultMaxFeePerGas).mul(gasLimit);
     let value = isWithdrawAll
       ? balance.sub(maxGasFee)
       : etherUtils.parseEther(amount);

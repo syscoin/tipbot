@@ -24,6 +24,15 @@ const sendUsageExample = (message) => {
   });
 };
 
+/**
+ *
+ * @param {any} wallet
+ * @param {*} receiverWallet
+ * @param {*} symbol
+ * @param {*} value
+ * @param {ethers.providers.JsonRpcProvider} jsonRpc Ethers JSON PRC Provider
+ * @returns
+ */
 const generateSendTransactionConfig = async (
   wallet,
   receiverWallet,
@@ -31,14 +40,27 @@ const generateSendTransactionConfig = async (
   value,
   jsonRpc
 ) => {
+  const partialConfig = {
+    type: 2,
+    chainId: config.nevm.chainId,
+    to: receiverWallet.address,
+    value,
+  };
+
+  const gasLimit = await jsonRpc
+    .estimateGas(partialConfig)
+    .catch(() => Promise.resolve(config.nevm.gasLimit));
+
+  const { maxPriorityFeePerGas, maxFeePerGas } = await jsonRpc.getFeeData();
+
   let transactionConfig = {
     type: 2,
     chainId: config.nevm.chainId,
     to: receiverWallet.address,
     value,
-    gasLimit: config.nevm.gasLimit,
-    maxFeePerGas: parseUnits("10", "gwei"),
-    maxPriorityFeePerGas: parseUnits("2", "gwei"),
+    gasLimit,
+    maxFeePerGas: maxFeePerGas ?? parseUnits("40", "gwei"),
+    maxPriorityFeePerGas: maxPriorityFeePerGas ?? parseUnits("3", "gwei"),
   };
 
   if (symbol && symbol.toUpperCase() !== "SYS") {
@@ -131,7 +153,10 @@ async function send(
   }
 
   const gasLimit = config.nevm.gasLimit;
-  const maxFeePerGas = parseUnits("10", "gwei");
+
+  const maxFeePerGas = await jsonRpc
+    .getGasPrice()
+    .catch(() => parseUnits("40", "gwei"));
   const maxGasFee = maxFeePerGas.mul(gasLimit);
 
   const value = parseEther(argValue.toString());
