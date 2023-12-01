@@ -102,7 +102,7 @@ const generateWithdrawTransactionConfig = async (params) => {
     nonce,
     maxFeePerGas: maxFeePerGas ?? etherUtils.parseUnits("40", "gwei"),
     maxPriorityFeePerGas:
-      maxPriorityFeePerGas ?? etherUtils.parseUnits("3", "gwei"),
+      maxPriorityFeePerGas?.mul(2) ?? etherUtils.parseUnits("3", "gwei"),
     ...transferTransactionConfig,
   };
 

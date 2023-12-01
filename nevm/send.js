@@ -60,7 +60,8 @@ const generateSendTransactionConfig = async (
     value,
     gasLimit,
     maxFeePerGas: maxFeePerGas ?? parseUnits("40", "gwei"),
-    maxPriorityFeePerGas: maxPriorityFeePerGas ?? parseUnits("3", "gwei"),
+    maxPriorityFeePerGas:
+      maxPriorityFeePerGas?.mul("2") ?? parseUnits("3", "gwei"),
   };
 
   if (symbol && symbol.toUpperCase() !== "SYS") {
@@ -211,7 +212,7 @@ async function send(
   }
 
   console.log("Sending Transaction...", { transactionConfig });
-  
+
   runTransaction(wallet.privateKey, transactionConfig, jsonRpc)
     .then((response) => {
       console.log("Transaction Sent!");
