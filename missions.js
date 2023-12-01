@@ -1501,9 +1501,13 @@ exports.payMission = async function (
         });
     }
   } catch (error) {
-    console.log(error);
+    const errorMessage = "Error paying mission: " + mission.missionID;
+    console.log(errorMessage, error);
     message.channel.send({
-      embed: { color: c.FAIL_COL, description: "Error paying mission." },
+      embed: {
+        color: c.FAIL_COL,
+        description: errorMessage,
+      },
     });
   }
 };
