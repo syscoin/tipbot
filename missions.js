@@ -1051,6 +1051,7 @@ const generateDistributeFundsTransaction = async (
     );
 
   const gasPrice = await jsonRpc.getGasPrice();
+  const { maxFeePerGas, maxPriorityFeePerGas } = await jsonRpc.getFeeData();
 
   // ethers.UnsignedTransaction
   const transactionConfig = {
@@ -1059,11 +1060,13 @@ const generateDistributeFundsTransaction = async (
     value,
     gasLimit,
     gasPrice,
-    maxFeePerGas: gasPrice,
-    maxPriorityFeePerGas: ethers.utils.parseUnits(
-      config.nevm.distributor.missions.maxPriorityFeePerGasInGwei,
-      "gwei"
-    ),
+    maxFeePerGas: maxFeePerGas ?? gasPrice,
+    maxPriorityFeePerGas:
+      maxPriorityFeePerGas ??
+      ethers.utils.parseUnits(
+        config.nevm.distributor.missions.maxPriorityFeePerGasInGwei,
+        "gwei"
+      ),
   };
 
   const distributeTransactionConfig =
