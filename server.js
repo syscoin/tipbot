@@ -144,6 +144,10 @@ client.on("ready", () => {
 
   // set status
   client.user.setActivity(`#tips - !help `, { type: "PLAYING" });
+
+  // Resume giveaway timers
+  nevm.startGiveawayTimer();
+  nevm.resumeActiveGiveaways(client, provider);
 });
 
 const checkHouseProfile = async () => {
@@ -1397,7 +1401,9 @@ client.on("message", async (message) => {
       case "giveaway":
         // creates a giveaway that will randomly select a given number of users who react to the message
         // within a given time and will give the specified amount of SYS or SPTs to the selected winners
-        const canGiveAway = utils.checkAdminRole(message) || utils.checkMissionRunnerRole(message);
+        const canGiveAway =
+          utils.checkAdminRole(message) ||
+          utils.checkMissionRunnerRole(message);
         if (!canGiveAway) {
           message.channel
             .send({
@@ -1412,7 +1418,15 @@ client.on("message", async (message) => {
           return;
         }
 
-        if ([config.giveawayChannel, config.rollCallChannel].includes(message.channel.id)) {
+        if (args.slice(-1)[0].toUpperCase() === "NEVM") {
+          return await nevm.createGiveAway(message, args, client, provider);
+        }
+
+        if (
+          [config.giveawayChannel, config.rollCallChannel].includes(
+            message.channel.id
+          )
+        ) {
           giveaways.createGiveaway(message, args, client);
         }
         break;

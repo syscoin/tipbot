@@ -507,6 +507,8 @@ exports.getEndingSoon = async function getEndingSoon(limit) {
     return tradesEnding
   } catch (error) {
     console.log(error)
-    message.channel.send({embed: { color: c.FAIL_COL, description: `Error finding trades.`}})
+    if(message) {
+      message.channel.send({embed: { color: c.FAIL_COL, description: `Error finding trades.`}})
+    }
   }
 }

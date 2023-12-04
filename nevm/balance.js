@@ -79,9 +79,7 @@ async function balance(client, message, args, jsonProvider) {
       });
   }
 
-  let balanceInWei = undefined;
-
-  balanceInWei = await jsonProvider.getBalance(nevmWallet.address);
+  let balanceInWei = await jsonProvider.getBalance(nevmWallet.address);
   const tokenBalances = await Promise.all(
     config.nevm.supportedTokens.map(async (token) => {
       const balance = await getTokenBalance(
@@ -94,7 +92,11 @@ async function balance(client, message, args, jsonProvider) {
   );
   const tokenBalancesStr = tokenBalances.map(
     ({ token, balance }) =>
-      `${utils.getNevmExplorerLink(token.address, 'token', token.symbol)}: ${ethers.utils.formatEther(balance)}`
+      `${utils.getNevmExplorerLink(
+        token.address,
+        "token",
+        token.symbol
+      )}: ${ethers.utils.formatEther(balance)}`
   );
 
   const balanceInEth = ethers.utils.formatEther(balanceInWei);

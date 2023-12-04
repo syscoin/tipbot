@@ -13,6 +13,7 @@ const MissionSchema = new mongoose.Schema({
   endTime: { type: Date },
   active: { type: Boolean },
   nevm: { type: Boolean },
+  txHash: { type: String },
 });
 
 Mission = mongoose.model("missions", MissionSchema);

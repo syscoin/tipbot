@@ -8,7 +8,11 @@ var GiveawaySchema = new mongoose.Schema({
   winners: [{ type: ObjectId, ref: 'Profile' }],
   dateCreated: { type: Date },
   endTime: { type: Date },
-  active: { type: Boolean }
+  active: { type: Boolean },
+  messageId: { type: String },
+  channelId: { type: String },
+  authorId: { type: String },
+  expectedWinnerCount: { type: Number },
 });
 
 Giveaway = mongoose.model('giveaways', GiveawaySchema);
